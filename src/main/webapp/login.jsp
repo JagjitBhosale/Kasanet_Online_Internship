@@ -692,15 +692,16 @@
                     </label>
                     <select id="role" name="role" class="form-control" required>
                         <option value="" disabled selected>— Select your role —</option>
-                        <option value="student"
-                            ${param.role == 'student' ? 'selected' : ''}>
+                        <option value="STUDENT"
+                            ${param.role == 'STUDENT' ? 'selected' : ''}>
                             Student
                         </option>
-                        <option value="admin"
-                            ${param.role == 'admin' ? 'selected' : ''}>
+                        <option value="ADMIN"
+                            ${param.role == 'ADMIN' ? 'selected' : ''}>
                             Admin
                         </option>
                     </select>
+
                     <span class="field-error" id="roleError">Please select your role.</span>
                 </div>
 

@@ -16,12 +16,9 @@ public class UserDAO {
     private static final Logger LOGGER = Logger.getLogger(UserDAO.class.getName());
 
     public User registerUser(User user) {
-        final String sqlWithBranch = "INSERT INTO users "
-                + "(first_name, last_name, email, password_hash, mobile, country_code, role, stream, branch, college_name, city, referral_code, is_active, created_at) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
-        final String sqlWithoutBranch = "INSERT INTO users "
-                + "(first_name, last_name, email, password_hash, mobile, country_code, role, stream, college_name, city, referral_code, is_active, created_at) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+        final String sql = "INSERT INTO users "
+                + "(first_name, last_name, email, password_hash, phone, country_code, role, stream, college_name, city, referral_code, created_at) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
 
         Connection conn = null;
         PreparedStatement ps = null;
@@ -29,42 +26,19 @@ public class UserDAO {
 
         try {
             conn = DBConnection.getConnection();
-            boolean hasBranch = true;
-            try {
-                ps = conn.prepareStatement(sqlWithBranch, Statement.RETURN_GENERATED_KEYS);
-                ps.setString(1, user.getFirstName());
-                ps.setString(2, user.getLastName());
-                ps.setString(3, user.getEmail());
-                ps.setString(4, user.getPasswordHash());
-                ps.setString(5, user.getMobile());
-                ps.setString(6, user.getCountryCode() != null ? user.getCountryCode() : "+91");
-                ps.setString(7, user.getRole() != null ? user.getRole() : "STUDENT");
-                ps.setString(8, user.getStream());
-                ps.setString(9, user.getBranch());
-                ps.setString(10, user.getCollegeName());
-                ps.setString(11, user.getCity());
-                ps.setString(12, user.getReferralCode());
-                ps.setBoolean(13, true);
-                ps.executeUpdate();
-            } catch (SQLException ex) {
-                // If branch column does not exist yet in schema, fallback to legacy insert
-                hasBranch = false;
-                if (ps != null) { try { ps.close(); } catch (SQLException ignored) {} }
-                ps = conn.prepareStatement(sqlWithoutBranch, Statement.RETURN_GENERATED_KEYS);
-                ps.setString(1, user.getFirstName());
-                ps.setString(2, user.getLastName());
-                ps.setString(3, user.getEmail());
-                ps.setString(4, user.getPasswordHash());
-                ps.setString(5, user.getMobile());
-                ps.setString(6, user.getCountryCode() != null ? user.getCountryCode() : "+91");
-                ps.setString(7, user.getRole() != null ? user.getRole() : "STUDENT");
-                ps.setString(8, user.getStream());
-                ps.setString(9, user.getCollegeName());
-                ps.setString(10, user.getCity());
-                ps.setString(11, user.getReferralCode());
-                ps.setBoolean(12, true);
-                ps.executeUpdate();
-            }
+            ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            ps.setString(1, user.getFirstName());
+            ps.setString(2, user.getLastName());
+            ps.setString(3, user.getEmail());
+            ps.setString(4, user.getPasswordHash());
+            ps.setString(5, user.getMobile());
+            ps.setString(6, user.getCountryCode() != null ? user.getCountryCode() : "+91");
+            ps.setString(7, user.getRole() != null ? user.getRole() : "STUDENT");
+            ps.setString(8, user.getStream());
+            ps.setString(9, user.getCollegeName());
+            ps.setString(10, user.getCity());
+            ps.setString(11, user.getReferralCode());
+            ps.executeUpdate();
 
             generatedKeys = ps.getGeneratedKeys();
             if (generatedKeys.next()) {
@@ -105,7 +79,7 @@ public class UserDAO {
     }
 
     public User getUserById(int userId) {
-        final String sql = "SELECT * FROM users WHERE user_id = ?";
+        final String sql = "SELECT * FROM users WHERE id = ?";
 
         Connection conn = null;
         PreparedStatement ps = null;
@@ -153,7 +127,7 @@ public class UserDAO {
     }
 
     public boolean mobileExists(String mobile) {
-        final String sql = "SELECT COUNT(*) FROM users WHERE mobile = ?";
+        final String sql = "SELECT COUNT(*) FROM users WHERE phone = ?";
 
         Connection conn = null;
         PreparedStatement ps = null;
@@ -177,7 +151,7 @@ public class UserDAO {
     }
 
     public boolean updateUser(User user) {
-        final String sql = "UPDATE users SET first_name = ?, last_name = ?, mobile = ?, city = ?, updated_at = NOW() WHERE user_id = ?";
+        final String sql = "UPDATE users SET first_name = ?, last_name = ?, phone = ?, city = ?, updated_at = NOW() WHERE id = ?";
         Connection conn = null;
         PreparedStatement ps = null;
         try {
@@ -198,45 +172,29 @@ public class UserDAO {
     }
 
     public boolean updateLastLogin(int userId) {
-        final String updateUser = "UPDATE student_profiles SET previous_login = last_login, last_login = NOW() WHERE user_id = ?";
-        final String insertActivity = "INSERT INTO login_activity (user_id, login_time, ip_address) VALUES (?, NOW(), '127.0.0.1')";
+        // Update the updated_at timestamp on the users table to track last login
+        final String sql = "UPDATE users SET updated_at = NOW() WHERE id = ?";
 
         Connection conn = null;
-        PreparedStatement psUser = null;
-        PreparedStatement psActivity = null;
+        PreparedStatement ps = null;
 
         try {
             conn = DBConnection.getConnection();
-            conn.setAutoCommit(false);
-
-            psUser = conn.prepareStatement(updateUser);
-            psUser.setInt(1, userId);
-            psUser.executeUpdate();
-
-            psActivity = conn.prepareStatement(insertActivity);
-            psActivity.setInt(1, userId);
-            psActivity.executeUpdate();
-
-            conn.commit();
+            ps = conn.prepareStatement(sql);
+            ps.setInt(1, userId);
+            ps.executeUpdate();
             return true;
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "updateLastLogin: failed for userId=" + userId, e);
-            if (conn != null) {
-                try { conn.rollback(); } catch (SQLException ignored) {}
-            }
             return false;
         } finally {
-            closeResources(null, psUser, null);
-            closeResources(null, psActivity, null);
-            if (conn != null) {
-                try { conn.setAutoCommit(true); conn.close(); } catch (SQLException ignored) {}
-            }
+            closeResources(null, ps, conn);
         }
     }
 
     public java.util.List<User> getAllUsers() {
         java.util.List<User> users = new java.util.ArrayList<>();
-        final String sql = "SELECT * FROM users ORDER BY user_id DESC";
+        final String sql = "SELECT * FROM users ORDER BY id DESC";
         Connection conn = null;
         PreparedStatement ps = null;
         ResultSet rs = null;
@@ -260,7 +218,7 @@ public class UserDAO {
      */
     public java.util.List<User> getAllStudents() {
         java.util.List<User> students = new java.util.ArrayList<>();
-        final String sql = "SELECT * FROM users WHERE role = 'STUDENT' ORDER BY user_id DESC";
+        final String sql = "SELECT * FROM users WHERE role = 'STUDENT' ORDER BY id DESC";
         Connection conn = null;
         PreparedStatement ps = null;
         ResultSet rs = null;
@@ -283,7 +241,7 @@ public class UserDAO {
      * Deletes a user by their user ID.
      */
     public boolean deleteUser(int userId) {
-        final String sql = "DELETE FROM users WHERE user_id = ?";
+        final String sql = "DELETE FROM users WHERE id = ?";
         Connection conn = null;
         PreparedStatement ps = null;
         try {
@@ -309,7 +267,7 @@ public class UserDAO {
             if (i > 0) placeholders.append(",");
             placeholders.append("?");
         }
-        final String sql = "DELETE FROM users WHERE user_id IN (" + placeholders + ")";
+        final String sql = "DELETE FROM users WHERE id IN (" + placeholders + ")";
         Connection conn = null;
         PreparedStatement ps = null;
         try {
@@ -329,22 +287,19 @@ public class UserDAO {
 
     private User mapRowToUser(ResultSet rs) throws SQLException {
         User user = new User();
-        user.setUserId(rs.getInt("user_id"));
+        user.setUserId(rs.getInt("id"));
         user.setFirstName(rs.getString("first_name"));
         user.setLastName(rs.getString("last_name"));
         user.setEmail(rs.getString("email"));
         user.setPasswordHash(rs.getString("password_hash"));
-        user.setMobile(rs.getString("mobile"));
+        user.setMobile(rs.getString("phone"));
         user.setCountryCode(rs.getString("country_code"));
         user.setRole(rs.getString("role"));
         user.setStream(rs.getString("stream"));
-        try {
-            user.setBranch(rs.getString("branch"));
-        } catch (SQLException ignored) {}
         user.setCollegeName(rs.getString("college_name"));
         user.setCity(rs.getString("city"));
         user.setReferralCode(rs.getString("referral_code"));
-        user.setActive(rs.getBoolean("is_active"));
+        user.setActive(true); // DB has is_profile_completed, not is_active; all users are active
         user.setCreatedAt(rs.getTimestamp("created_at"));
         user.setUpdatedAt(rs.getTimestamp("updated_at"));
         return user;
