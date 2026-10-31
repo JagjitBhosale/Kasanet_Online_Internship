@@ -25,14 +25,14 @@
 
 | Layer | Technology | Details |
 |---|---|---|
-| **Language** | Java 11 / Java 17 / Java 21 | Compatible with Java 11+ LTS bytecode |
+| **Language** | Java 8 (JDK 1.8) | Compiled for Java 8 (JDK 1.8) bytecode; compatible with Java 8+ |
 | **Framework** | Java Servlets 3.1 & JSP 2.3 | Standard Java EE (`javax.servlet`) specification |
 | **Architecture** | MVC Pattern | Strict Model-View-Controller separation |
 | **Database** | MySQL 5.7+ / 8.0+ | Compatible with MySQL Workbench 6.3+ (InnoDB, UTF-8) |
 | **Persistence** | JDBC with `PreparedStatement` | SQL-injection safe, clean resource closing |
 | **Security** | BCrypt (`jbcrypt:0.4`) | Salt rounds = 12, timing-attack safe |
 | **Styling** | Per-Page Inline CSS3 & Clean SVGs | **Zero external CSS framework lock-in**, 100% responsive, zero cartoon emojis |
-| **Build System** | Apache Maven 3.x | Build wrapper `mvn.bat` included in repository |
+| **Project Format** | Eclipse Dynamic Web Project | Native Java EE DWP (Dynamic Web Module 3.1, Java 8, Tomcat 8.0/8.5), no Maven required |
 | **Timezone** | Indian Standard Time (IST) | `Asia/Kolkata` (UTC+05:30) enforced end-to-end |
 
 ---
@@ -57,7 +57,9 @@ cd "d:\My Workspace\Kasnet_Online_Internship"
 ```
 
 ### Step 2: Initialize MySQL Database
-Open your MySQL client (Command Line or MySQL Workbench) and run `database.sql`:
+For a brand-new installation, open your MySQL client (Command Line or MySQL Workbench) and run `database.sql`. The schema already includes the assignment instruction columns used by the application.
+
+`database.sql` drops and recreates the tables. Do not run it against a database with data you need to keep.
 
 ```powershell
 # Using MySQL Command Line:
@@ -70,49 +72,65 @@ This script automatically creates:
 - All 15 relational tables with foreign keys and indexes
 - Seeded curriculum modules, sample assignments, and sample lectures.
 
-### Step 3: Configure Database Password
-Open `src/main/java/com/kasnet/util/DBConnection.java` in any text editor or IDE:
+### Step 3: Configure Environment Variables (.env)
+Credentials are never hardcoded in the codebase. All configuration is loaded dynamically from `.env` in the project root (or OS environment variables in cloud/production deployments).
 
-```java
-// Line 34-41 in DBConnection.java:
-private static final String DB_USER = "root";
-private static final String DB_PASSWORD = "YOUR_MYSQL_PASSWORD"; // <-- Enter your local MySQL root password
-```
+1. Copy `.env.example` to `.env`:
+   ```powershell
+   copy .env.example .env
+   ```
+2. Open `.env` and fill in your MySQL credentials and Groq API key:
+   ```env
+   # Database Configuration
+   DB_URL=jdbc:mysql://localhost:3306/online_internship?useSSL=false&serverTimezone=Asia/Kolkata&allowPublicKeyRetrieval=true
+   DB_USER=root
+   DB_PASSWORD=your_mysql_password
 
-### Step 4: Run Locally (One Single Command)
-We have included a configured embedded Tomcat runner in Maven. You do **not** need to install standalone Tomcat:
+   # Groq AI Cloud Configuration (Resume & Skill Gap Engine)
+   GROQ_API_KEY=your_groq_api_key_here
+   GROQ_MODEL=openai/gpt-oss-120b
+   ```
 
-**On Windows (PowerShell / CMD):**
-```powershell
-.\mvn.bat tomcat7:run
-```
+*For Docker / Container / Cloud deployments (AWS, Render, Heroku), you can also pass standard OS environment variables (`DB_URL`, `DB_USER`, `DB_PASSWORD`, `GROQ_API_KEY`) directly.*
 
-**On macOS / Linux (if Maven is installed):**
-```bash
-mvn tomcat7:run
-```
-
-Wait until you see:
-```text
-INFO: Starting ProtocolHandler ["http-bio-8080"]
-```
+### Step 4: Run in Eclipse Oxygen / Tomcat
+1. Open **Eclipse Oxygen (or Eclipse for Java EE)**.
+2. Select **File** -> **Import...** -> **General** -> **Existing Projects into Workspace** -> **Next**.
+3. Browse to `d:\My Workspace\Kasnet_Online_Internship` and click **Finish**.
+4. In the **Servers** tab, ensure **Apache Tomcat v8.0** (or v8.5) is configured.
+5. Right-click `kasnet-internship-portal` -> **Run As** -> **Run on Server** -> Choose **Tomcat v8.0 Server** -> **Finish**.
 
 ### Step 5: Open in Your Browser
 Open your browser and navigate to:
-👉 **`http://localhost:8080/internship/`**
+👉 **`http://localhost:8080/kasnet-internship-portal/`**
 
-*(To stop the server at any time, press `Ctrl + C` in the terminal).*
+### Assignment errors or student dashboard HTTP 500
+
+The current `database.sql` schema includes the assignment instruction columns. If your existing database was created from an older schema, back it up before rebuilding the database from the current schema. Rebuilding drops existing tables and data; do not do this if you need to preserve them.
+
+Instruction PDFs are stored outside the deployed web application at `<catalina.base>/uploads/assignment-instructions`. Change the `assignmentInstructionsUploadDir` context parameter in `WebContent/WEB-INF/web.xml` to another absolute or Tomcat-base-relative upload directory when needed; the application places its `assignment-instructions` subdirectory under that path.
+
+The assignment-instruction servlet allows a 5 MiB file in a 6 MiB multipart request. Student submission uploads
+allow 10 MiB files in an 11 MiB request. Multipart text fields are read from servlet parts directly so upload
+handling does not depend on Tomcat's URL-parameter parsing limit.
 
 ---
 
 ## Pre-configured Test Credentials
 
-The application provides pre-configured credentials for quick testing:
+The fresh-install seed in `database.sql` creates these accounts. To add or reset these demo credentials in an existing database without dropping tables, run `seed_demo_accounts.sql` from the project directory. It only updates the three listed demo email addresses; other accounts are unchanged:
+
+```powershell
+mysql -u root -p < seed_demo_accounts.sql
+```
+
+The MySQL client prompts for the database password. The demo credentials are:
 
 | Role | Email | Password | Destination Dashboard |
 |---|---|---|---|
-| **Student (Test ID)** | `test@myinternshiptech.com` *(or `test@kasnet.in`)* | `Test@12345` | Student Portal (`/dashboard`) |
-| **System Administrator** | `admin@myinternshiptech.com` *(or `admin@kasnet.in`)* | `Admin@12345` | Admin Console (`/admin`) |
+| **Student (Test ID)** | `test@myinternshiptech.com` | `Test@12345` | Student Portal (`/dashboard`) |
+| **System Administrator** | `admin@myinternshiptech.com` | `Admin@12345` | Admin Console (`/admin`) |
+| **Legacy administrator alias** | `admin@kasnet.in` | `Admin@12345` | Admin Console (`/admin`) |
 
 You can also click **Register** on the landing page to register a fresh student account. New accounts are immediately persisted in your local MySQL database.
 
@@ -123,7 +141,9 @@ You can also click **Register** on the landing page to register a fresh student 
 You can verify database connectivity, validations, password hashing, and profile calculations in 5 seconds without starting the web browser:
 
 ```powershell
-.\mvn.bat exec:java '-Dexec.mainClass=com.kasnet.util.SystemVerifier'
+# In PowerShell (using compiled classes in build/classes and WebContent/WEB-INF/lib):
+$cp = "build\classes;" + ((Get-ChildItem WebContent\WEB-INF\lib\*.jar | ForEach-Object { $_.FullName }) -join ";")
+java -cp $cp com.kasnet.util.SystemVerifier
 ```
 
 Output:
@@ -145,18 +165,48 @@ Output:
 
 ---
 
+## Importing & Running in Eclipse Oxygen (Dynamic Web Project)
+
+This project is configured out-of-the-box as an **Eclipse Dynamic Web Project** (Dynamic Web Module 3.1, JDK 1.8, Apache Tomcat 8.0).
+
+### Step 1: Open Eclipse Oxygen
+1. Launch **Eclipse Oxygen (or any Eclipse for Java EE)** with **JDK 1.8**.
+2. Click **File** -> **Import...** -> **General** -> **Existing Projects into Workspace** -> **Next**.
+3. In **Select root directory**, browse to this project directory:
+   d:\My Workspace\Kasnet_Online_Internship
+4. Ensure kasnet-internship-portal is checked, and click **Finish**.
+5. Eclipse will automatically recognize the project structure:
+   - **Java Source:** src
+   - **Web Content:** WebContent
+   - **Libraries:** WebContent/WEB-INF/lib (via *Web App Libraries*)
+   - **Runtime:** Apache Tomcat v8.0 (Dynamic Web Module 3.1, JavaSE-1.8)
+
+### Step 2: Configure Tomcat 8.0 Server in Eclipse
+1. If you haven't added Tomcat 8.0 yet:
+   - In the **Servers** tab, right-click -> **New** -> **Server**.
+   - Select **Apache** -> **Tomcat v8.0 Server** -> click **Next**.
+   - Point to your Apache Tomcat 8.0 directory and select **JavaSE-1.8** -> click **Finish**.
+2. Right-click the configured **Tomcat v8.0 Server** -> **Add and Remove...**.
+3. Select kasnet-internship-portal -> click **Add >** -> **Finish**.
+
+### Step 3: Run the Application
+1. Right-click kasnet-internship-portal in the Project Explorer.
+2. Select **Run As** -> **Run on Server** -> Choose **Tomcat v8.0 Server** -> **Finish**.
+3. Access the portal in Eclipse's internal browser or your external browser:
+   👉 **http://localhost:8080/kasnet-internship-portal/**
+
+---
+
 ## Alternative: Deploying to Standalone Tomcat
 
-If you are deploying to a standalone **Apache Tomcat 8.5 / 9.0** installation:
+If you are deploying to a standalone **Apache Tomcat 8.0 / 8.5 / 9.0** installation:
 
-1. **Package the WAR file:**
-   ```powershell
-   .\mvn.bat clean package
-   ```
-2. **Locate the artifact:**
-   `target/kasnet-internship-portal.war`
-3. **Deploy:**
-   Copy `target/kasnet-internship-portal.war` into your Tomcat's `webapps/` folder.
+1. **Export the WAR file from Eclipse:**
+   - In Eclipse, right-click `kasnet-internship-portal` -> **Export** -> **WAR file**.
+   - Set the destination to your desired path and click **Finish**.
+   *(Or build via CLI: copy `build\classes` into `WebContent\WEB-INF\classes` and run `jar -cf kasnet-internship-portal.war -C WebContent .`)*
+2. **Deploy:**
+   Copy `kasnet-internship-portal.war` into your Tomcat's `webapps/` folder.
 4. **Start Tomcat:**
    - Windows: `C:\path\to\tomcat\bin\startup.bat`
    - Linux/Mac: `/path/to/tomcat/bin/startup.sh`
@@ -174,7 +224,9 @@ If you are deploying to a standalone **Apache Tomcat 8.5 / 9.0** installation:
 | `/login` | `LoginServlet` | Public | Split-panel login with CAPTCHA and BCrypt authentication. |
 | `/dashboard` | `DashboardServlet` | Student | Central student dashboard with 5 core feature cards and overview metrics. |
 | `/profile` | `ProfileServlet` | Student | 5-section profile management with dynamic completeness score in **IST**. |
-| `/assignments` | `AssignmentServlet` | Student | Assignment list, deadlines, submission uploads, and graded scores. |
+| `/assignments` | `AssignmentServlet` | Authenticated student | Assignment instructions, deadlines, submission uploads, and graded scores. |
+| `/admin/assignments` | `AdminAssignmentServlet` | Admin only | Create, edit, publish, deactivate, and republish assignments. |
+| `/assignment-instructions` | `AssignmentInstructionPdfServlet` | Authenticated student/admin | Serves an assignment's private instruction PDF. |
 | `/lectures` | `LectureServlet` | Student | Video curriculum, duration tracker, and module completion markers. |
 | `/question-bank` | `QuestionBankServlet` | Student | Subject Question Bank with dropdown (`Java`, `Python`, `Web`, `DBMS`, `Cloud`). |
 | `/resume-analysis` | `ResumeAnalysisServlet`| Student | Resume document upload dropzone and ATS analysis placeholder. |
@@ -187,86 +239,95 @@ If you are deploying to a standalone **Apache Tomcat 8.5 / 9.0** installation:
 
 ```text
 Kasnet_Online_Internship/
-├── pom.xml                                  # Maven dependencies & build configuration
 ├── database.sql                             # Full MySQL schema & seed data
 ├── README.md                                # Local setup & developer documentation
 ├── docs/
 │   ├── PROJECT_PROGRESS.md                  # Comprehensive technical progress & handover guide
 │   └── screenshots/                         # Reference mockups & logo_final.png
-└── src/main/
-    ├── java/com/kasnet/
-    │   ├── controller/                      # Servlets (Controllers)
-    │   │   ├── LoginServlet.java
-    │   │   ├── RegisterServlet.java
-    │   │   ├── LogoutServlet.java
-    │   │   ├── DashboardServlet.java
-    │   │   ├── ProfileServlet.java
-    │   │   ├── PersonalDetailsServlet.java
-    │   │   ├── EducationServlet.java
-    │   │   ├── SkillsServlet.java
-    │   │   ├── CertificationServlet.java
-    │   │   ├── ProjectServlet.java
-    │   │   ├── HackathonServlet.java
-    │   │   ├── CompetitionServlet.java
-    │   │   ├── AssignmentServlet.java
-    │   │   ├── LectureServlet.java
-    │   │   ├── QuestionBankServlet.java
-    │   │   ├── ResumeAnalysisServlet.java
-    │   │   └── AdminServlet.java
-    │   ├── model/                           # JavaBeans / POJOs (Models)
-    │   │   ├── User.java
-    │   │   ├── StudentProfile.java
-    │   │   ├── Education.java
-    │   │   ├── Skill.java
-    │   │   ├── Certification.java
-    │   │   ├── Project.java
-    │   │   ├── Hackathon.java
-    │   │   ├── Competition.java
-    │   │   ├── Assignment.java
-    │   │   ├── Lecture.java
-    │   │   └── DashboardStats.java
-    │   ├── dao/                             # JDBC Data Access Objects
-    │   │   ├── UserDAO.java
-    │   │   ├── ProfileDAO.java
-    │   │   ├── EducationDAO.java
-    │   │   ├── SkillDAO.java
-    │   │   ├── CertificationDAO.java
-    │   │   ├── ProjectDAO.java
-    │   │   ├── HackathonDAO.java
-    │   │   ├── CompetitionDAO.java
-    │   │   ├── AssignmentDAO.java
-    │   │   ├── LectureDAO.java
-    │   │   └── DashboardDAO.java
-    │   ├── service/                         # Application Services
-    │   │   ├── AuthenticationService.java
-    │   │   ├── ProfileService.java
-    │   │   └── FileUploadService.java
-    │   └── util/                            # Utilities
-    │       ├── DBConnection.java            # JDBC connection pool manager (Asia/Kolkata timezone)
-    │       ├── PasswordUtil.java            # BCrypt hashing & verification
-    │       ├── ValidationUtil.java          # 10-digit phone, regex email, date validation
-    │       ├── SessionUtil.java             # Session auth verification
-    │       └── SystemVerifier.java          # Offline automated test suite
-    └── webapp/
-        ├── index.jsp                        # Public landing page
-        ├── login.jsp                        # Login view
-        ├── register.jsp                     # Registration view
-        ├── assets/
-        │   └── images/
-        │       └── logo.png                 # Official brand logo
-        ├── views/
-        │   ├── dashboard.jsp                # Student logged-in homepage
-        │   ├── profile.jsp                  # 5-section profile view
-        │   ├── assignments.jsp              # Assignments module
-        │   ├── lectures.jsp                 # Lectures module
-        │   ├── question-bank.jsp            # Question bank with subject selector
-        │   ├── resume-analysis.jsp          # Resume analysis interface
-        │   ├── admin.jsp                    # Admin monitoring console
-        │   ├── error-404.jsp                # 404 handler
-        │   ├── error-500.jsp                # 500 handler
-        │   └── unauthorized.jsp             # Session expired handler
-        └── WEB-INF/
-            └── web.xml                      # Deployment descriptor (servlets, filters, IST timezone)
+├── .project                                  # Eclipse project description (Dynamic Web Project)
+├── .classpath                                # Eclipse classpath (JDK 1.8, Tomcat 8.0, Web App Libs)
+├── .settings/                                # Eclipse facet settings (Java 1.8, Dynamic Web 3.1)
+├── src/                                     # Java source directory (root package: com.kasnet)
+│   └── com/kasnet/
+│       ├── controller/                      # Servlets (Controllers)
+│       │   ├── LoginServlet.java
+│       │   ├── RegisterServlet.java
+│       │   ├── LogoutServlet.java
+│       │   ├── DashboardServlet.java
+│       │   ├── ProfileServlet.java
+│       │   ├── PersonalDetailsServlet.java
+│       │   ├── EducationServlet.java
+│       │   ├── SkillsServlet.java
+│       │   ├── CertificationServlet.java
+│       │   ├── ProjectServlet.java
+│       │   ├── HackathonServlet.java
+│       │   ├── CompetitionServlet.java
+│       │   ├── AssignmentServlet.java
+│       │   ├── LectureServlet.java
+│       │   ├── QuestionBankServlet.java
+│       │   ├── ResumeAnalysisServlet.java
+│       │   └── AdminServlet.java
+│       ├── model/                           # JavaBeans / POJOs (Models)
+│       │   ├── User.java
+│       │   ├── StudentProfile.java
+│       │   ├── Education.java
+│       │   ├── Skill.java
+│       │   ├── Certification.java
+│       │   ├── Project.java
+│       │   ├── Hackathon.java
+│       │   ├── Competition.java
+│       │   ├── Assignment.java
+│       │   ├── Lecture.java
+│       │   └── DashboardStats.java
+│       ├── dao/                             # JDBC Data Access Objects
+│       │   ├── UserDAO.java
+│       │   ├── ProfileDAO.java
+│       │   ├── EducationDAO.java
+│       │   ├── SkillDAO.java
+│       │   ├── CertificationDAO.java
+│       │   ├── ProjectDAO.java
+│       │   ├── HackathonDAO.java
+│       │   ├── CompetitionDAO.java
+│       │   ├── AssignmentDAO.java
+│       │   ├── LectureDAO.java
+│       │   └── DashboardDAO.java
+│       ├── service/                         # Application Services
+│       │   ├── AuthenticationService.java
+│       │   ├── ProfileService.java
+│       │   └── FileUploadService.java
+│       └── util/                            # Utilities
+│           ├── DBConnection.java            # JDBC connection manager (Asia/Kolkata timezone)
+│           ├── PasswordUtil.java            # BCrypt hashing & verification
+│           ├── ValidationUtil.java          # 10-digit phone, regex email, date validation
+│           ├── SessionUtil.java             # Session auth verification
+│           └── SystemVerifier.java          # Offline automated test suite
+└── WebContent/                              # Web Content root (Dynamic Web Module 3.1)
+    ├── META-INF/
+    │   └── MANIFEST.MF
+    ├── assets/
+    │   └── images/
+    │       ├── logo.png                     # Official brand logo
+    │       └── logo_final.png
+    ├── images/
+    │   └── logo_final.png
+    ├── views/
+    │   ├── dashboard.jsp                    # Student logged-in homepage
+    │   ├── profile.jsp                      # 5-section profile view
+    │   ├── assignments.jsp                  # Assignments module
+    │   ├── lectures.jsp                     # Lectures module
+    │   ├── question-bank.jsp                # Question bank with subject selector
+    │   ├── resume-analysis.jsp              # Resume analysis interface
+    │   ├── admin.jsp                        # Admin monitoring console
+    │   ├── error-404.jsp                    # 404 handler
+    │   ├── error-500.jsp                    # 500 handler
+    │   └── unauthorized.jsp                 # Session expired handler
+    ├── index.jsp                            # Public landing page
+    ├── login.jsp                            # Login view
+    ├── register.jsp                         # Registration view
+    └── WEB-INF/
+        ├── lib/                             # All runtime dependency JARs (21 libraries)
+        ├── tld/                             # JSTL tag library definitions (c.tld, fmt.tld, fn.tld)
+        └── web.xml                          # Deployment descriptor (servlets, filters, IST timezone)
 ```
 
 ---
@@ -299,29 +360,25 @@ All user-visible timestamps (e.g., Account Created Date, Previous Login Date, As
 
 ### 1. `Port 8080 already in use`
 If port 8080 is used by another application (e.g., Oracle, Jenkins, another Tomcat):
-- Change the port in `pom.xml` under `tomcat7-maven-plugin`:
-  ```xml
-  <configuration>
-      <port>8085</port>
-      <path>/internship</path>
-  </configuration>
-  ```
-- Access via `http://localhost:8085/internship/`.
+- In Eclipse, double-click your **Tomcat v8.0 Server** in the **Servers** view.
+- Under **Ports**, change the **HTTP/1.1** port from `8080` to `8085`.
+- Save (`Ctrl+S`) and restart Tomcat.
+- Access via `http://localhost:8085/kasnet-internship-portal/`.
 
 ### 2. `Access denied for user 'root'@'localhost'`
-- Check the password in `src/main/java/com/kasnet/util/DBConnection.java`.
+- Check the password in `src/com/kasnet/util/DBConnection.java`.
 - Test connecting in terminal: `mysql -u root -p`.
 
 ### 3. `Public Key Retrieval is not allowed`
 - This occurs on MySQL 8.0+ when using `caching_sha2_password`. It is already handled in `DBConnection.java` by the `allowPublicKeyRetrieval=true` flag.
 
-### 4. Background Java Process Locking Logs on Windows
-If `mvn clean` errors with `Failed to delete target\tomcat\logs\...`:
+### 4. Background Java Process Locking Tomcat on Windows
+If Tomcat fails to start or ports remain occupied:
 - Stop any running Java process in PowerShell:
   ```powershell
   Get-Process -Name java | Stop-Process -Force
   ```
-- Re-run `.\mvn.bat clean package`.
+- Restart the Tomcat server in Eclipse.
 
 ---
 

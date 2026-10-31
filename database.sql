@@ -15,11 +15,11 @@ SET CHARACTER SET utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- Create and select the database
-CREATE DATABASE IF NOT EXISTS `onlineinternship_db`
+CREATE DATABASE IF NOT EXISTS `online_internship`
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
 
-USE `onlineinternship_db`;
+USE `online_internship`;
 
 -- =============================================================
 --  DROP existing tables (reverse FK order)
@@ -32,6 +32,8 @@ DROP TABLE IF EXISTS `assignments`;
 DROP TABLE IF EXISTS `intercollege_competitions`;
 DROP TABLE IF EXISTS `hackathons`;
 DROP TABLE IF EXISTS `experience`;
+DROP TABLE IF EXISTS `platform_project_reports`;
+DROP TABLE IF EXISTS `platform_certificates`;
 DROP TABLE IF EXISTS `projects`;
 DROP TABLE IF EXISTS `certifications`;
 DROP TABLE IF EXISTS `skills`;
@@ -185,7 +187,7 @@ CREATE TABLE IF NOT EXISTS `skills` (
   `user_id`     INT          NOT NULL,
   `skill_name`  VARCHAR(100) NOT NULL,
   `skill_type`  VARCHAR(50)  NOT NULL,
-  `proficiency` ENUM('Beginner','Intermediate','Advanced','Expert') NOT NULL DEFAULT 'Intermediate',
+  `proficiency` ENUM('Beginner','Intermediate','Advanced','Expert') DEFAULT NULL,
   `created_at`  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`skill_id`),
   UNIQUE KEY `uq_user_skill` (`user_id`, `skill_name`, `skill_type`),
@@ -196,7 +198,10 @@ CREATE TABLE IF NOT EXISTS `skills` (
 ) ENGINE=InnoDB
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_unicode_ci
-  COMMENT='Skills tagged to a user with proficiency level';
+  COMMENT='Skills tagged to a user';
+
+ALTER TABLE `skills`
+  MODIFY COLUMN `proficiency` ENUM('Beginner','Intermediate','Advanced','Expert') DEFAULT NULL;
 
 -- =============================================================
 --  TABLE: certifications
@@ -225,7 +230,69 @@ CREATE TABLE IF NOT EXISTS `certifications` (
   COMMENT='Formal certifications earned by a student';
 
 -- =============================================================
---  TABLE: projects
+  --  TABLE: platform_certificates
+  --  Exam results for certificates issued by the Kasnet platform.
+  -- =============================================================
+  CREATE TABLE IF NOT EXISTS `platform_certificates` (
+    `certificate_id`  INT            NOT NULL AUTO_INCREMENT,
+    `user_id`         INT            NOT NULL,
+    `exam_name`       VARCHAR(200)   NOT NULL,
+    `score_obtained`  DECIMAL(8,2)   NOT NULL,
+    `total_score`     DECIMAL(8,2)   NOT NULL,
+    `achievement_date` DATE          NOT NULL,
+    `created_at`      TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`certificate_id`),
+    INDEX `idx_platform_cert_user` (`user_id`),
+    CONSTRAINT `fk_platform_cert_user`
+      FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`)
+      ON DELETE CASCADE ON UPDATE CASCADE
+  ) ENGINE=InnoDB
+    DEFAULT CHARSET=utf8mb4
+    COLLATE=utf8mb4_unicode_ci
+    COMMENT='Student exam results for certificates issued by the platform';
+
+-- =============================================================
+--  TABLE: platform_project_reports
+--  Detailed project reports submitted through the student dashboard.
+-- =============================================================
+CREATE TABLE IF NOT EXISTS `platform_project_reports` (
+    `report_id`                    INT            NOT NULL AUTO_INCREMENT,
+    `user_id`                      INT            NOT NULL,
+    `project_name`                 VARCHAR(200)   NOT NULL,
+    `scope_details`                TEXT           NOT NULL,
+    `project_domain`               VARCHAR(200)   DEFAULT NULL,
+    `project_technology`           VARCHAR(500)   DEFAULT NULL,
+    `project_application`          VARCHAR(500)   DEFAULT NULL,
+    `project_duration`             VARCHAR(100)   DEFAULT NULL,
+    `project_model`                VARCHAR(100)   NOT NULL,
+    `requirement_gathering_time`   VARCHAR(100)   DEFAULT NULL,
+    `project_analysis_time`        VARCHAR(100)   DEFAULT NULL,
+    `project_designing_time`       VARCHAR(100)   DEFAULT NULL,
+    `project_coding_time`          VARCHAR(100)   DEFAULT NULL,
+    `project_testing_time`         VARCHAR(100)   DEFAULT NULL,
+    `project_cost`                 DECIMAL(12,2)  DEFAULT NULL,
+    `testing_type`                 VARCHAR(100)   DEFAULT NULL,
+    `testing_duration`             VARCHAR(100)   DEFAULT NULL,
+    `issues_found`                 INT            NOT NULL DEFAULT 0,
+    `knowledge_requirement`        VARCHAR(40)    DEFAULT NULL,
+    `knowledge_analysis`           VARCHAR(40)    DEFAULT NULL,
+    `knowledge_designing`          VARCHAR(40)    DEFAULT NULL,
+    `knowledge_coding`             VARCHAR(40)    DEFAULT NULL,
+    `knowledge_testing`            VARCHAR(40)    DEFAULT NULL,
+    `knowledge_post_implementation` VARCHAR(40)   DEFAULT NULL,
+    `created_at`                   TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`report_id`),
+    INDEX `idx_platform_project_user` (`user_id`),
+    CONSTRAINT `fk_platform_project_user`
+      FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`)
+      ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB
+    DEFAULT CHARSET=utf8mb4
+    COLLATE=utf8mb4_unicode_ci
+    COMMENT='Detailed project reports submitted by students through the platform';
+
+    -- =============================================================
+  --  TABLE: projects
 --  Personal / academic / professional projects.
 -- =============================================================
 CREATE TABLE IF NOT EXISTS `projects` (
@@ -368,12 +435,15 @@ CREATE TABLE IF NOT EXISTS `assignments` (
   `title`             VARCHAR(200) NOT NULL,
   `subject`           VARCHAR(200) DEFAULT NULL,
   `description`       TEXT         DEFAULT NULL,
+  `instructions_text` TEXT         DEFAULT NULL,
+  `instruction_pdf_path` VARCHAR(255) DEFAULT NULL,
   `assignment_number` VARCHAR(50)  DEFAULT NULL,
   `due_date`          DATE         DEFAULT NULL,
   `total_marks`       INT          NOT NULL DEFAULT 100,
   `is_active`         TINYINT(1)   NOT NULL DEFAULT 1,
   `created_at`        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`assignment_id`)
+  PRIMARY KEY (`assignment_id`),
+  UNIQUE KEY `uq_assignment_number` (`assignment_number`)
 ) ENGINE=InnoDB
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_unicode_ci
@@ -413,7 +483,7 @@ CREATE TABLE IF NOT EXISTS `assignment_submissions` (
 --  Video / lecture content published by admins.
 -- =============================================================
 CREATE TABLE IF NOT EXISTS `lectures` (
-  `id`               INT          NOT NULL AUTO_INCREMENT,
+  `lecture_id`       INT          NOT NULL AUTO_INCREMENT,
   `title`            VARCHAR(200) NOT NULL,
   `subject`          VARCHAR(200) DEFAULT NULL,
   `description`      TEXT         DEFAULT NULL,
@@ -424,7 +494,7 @@ CREATE TABLE IF NOT EXISTS `lectures` (
   `lecture_date`     DATE         DEFAULT NULL,
   `is_active`        TINYINT(1)   NOT NULL DEFAULT 1,
   `created_at`       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`lecture_id`)
 ) ENGINE=InnoDB
   DEFAULT CHARSET=utf8mb4
   COLLATE=utf8mb4_unicode_ci
@@ -438,15 +508,14 @@ CREATE TABLE IF NOT EXISTS `lecture_progress` (
   `progress_id`           INT        NOT NULL AUTO_INCREMENT,
   `lecture_id`            INT        NOT NULL,
   `user_id`               INT        NOT NULL,
-  `completed`             TINYINT(1) NOT NULL DEFAULT 0,
+  `is_completed`          TINYINT(1) NOT NULL DEFAULT 0,
   `watch_progress_percent` INT       NOT NULL DEFAULT 0 COMMENT '0-100',
-  `progress_seconds`      INT        NOT NULL DEFAULT 0,
-  `last_watched_at`       TIMESTAMP  NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `last_watched`          TIMESTAMP  NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`progress_id`),
   UNIQUE KEY `uq_lecture_user` (`lecture_id`, `user_id`),
   INDEX `idx_lp_user` (`user_id`),
   CONSTRAINT `fk_lp_lecture`
-    FOREIGN KEY (`lecture_id`) REFERENCES `lectures` (`id`)
+    FOREIGN KEY (`lecture_id`) REFERENCES `lectures` (`lecture_id`)
     ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_lp_user`
     FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`)
@@ -483,28 +552,32 @@ CREATE TABLE IF NOT EXISTS `login_activity` (
 
 -- -------------------------------------------------------------
 --  Admin user
---  NOTE: The password_hash below is a PLACEHOLDER only.
---        BCrypt hashes MUST be generated at runtime (e.g. via
---        RegisterServlet or BCrypt.hashpw()).
---        Replace '$2a$12$PLACEHOLDER_HASH' with a real BCrypt
---        hash before use, or use RegisterServlet to create
---        accounts properly.
---
---  Example plain-text password intended: Admin@1234
+--  Credentials: admin@myinternshiptech.com / Admin@12345
+--               admin@kasnet.in / Admin@12345 (legacy alias)
 -- -------------------------------------------------------------
 INSERT INTO `users`
   (`first_name`, `last_name`, `email`, `password_hash`, `mobile`, `country_code`, `role`, `is_active`)
 VALUES
   ('MIT', 'Admin', 'admin@myinternshiptech.com',
-   '$2a$12$PLACEHOLDER_REPLACE_WITH_REAL_BCRYPT_HASH_FOR_Admin1234',
+   '$2a$12$AyM4Ut1sHpQo7jmZvv19L.fE5dxq0Tb6r.Cq42nWqEpf2EaiUtKZG',
+   '9000000000', '+91', 'ADMIN', 1),
+  ('MIT', 'Admin', 'admin@kasnet.in',
+   '$2a$12$AyM4Ut1sHpQo7jmZvv19L.fE5dxq0Tb6r.Cq42nWqEpf2EaiUtKZG',
    '9000000000', '+91', 'ADMIN', 1);
 
--- NOTE: To create a proper admin, run the application and call:
---   BCrypt.hashpw("Admin@1234", BCrypt.gensalt(12))
--- then UPDATE users SET password_hash='<hash>' WHERE email='admin@myinternshiptech.com';
---
--- Or simply register through RegisterServlet and promote to ADMIN:
---   UPDATE users SET role='ADMIN' WHERE email='admin@myinternshiptech.com';
+-- -------------------------------------------------------------
+--  Test student account
+--  Credentials: test@myinternshiptech.com / Test@12345
+-- -------------------------------------------------------------
+INSERT INTO `users`
+  (`first_name`, `last_name`, `email`, `password_hash`, `mobile`, `country_code`, `role`, `stream`, `branch`, `college_name`, `city`, `is_active`)
+VALUES
+  ('Test', 'Student', 'test@myinternshiptech.com',
+   '$2a$12$wQfH0c0nSBXsVtZYJoKHzOeB80RhC6651LDqJxZZBJYudXBZSgZcO',
+   '9000000001', '+91', 'STUDENT', 'Graduation', 'Computer Science and Engineering', 'Institute of Technology', 'Pune', 1);
+
+INSERT INTO `student_profiles` (`user_id`)
+SELECT `user_id` FROM `users` WHERE `email` = 'test@myinternshiptech.com';
 
 -- -------------------------------------------------------------
 --  Sample Assignments
