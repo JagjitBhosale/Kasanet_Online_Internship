@@ -40,8 +40,14 @@ public final class AssignmentFileStorage {
             throw new IllegalArgumentException("The instruction file must have a PDF content type.");
         }
         try (InputStream input = part.getInputStream()) {
-            byte[] header = input.readNBytes(5);
-            if (header.length != 5 || header[0] != '%'
+            byte[] header = new byte[5];
+            int read = 0;
+            while (read < 5) {
+                int r = input.read(header, read, 5 - read);
+                if (r == -1) break;
+                read += r;
+            }
+            if (read != 5 || header[0] != '%'
                     || header[1] != 'P' || header[2] != 'D' || header[3] != 'F' || header[4] != '-') {
                 throw new IllegalArgumentException("The uploaded file is not a valid PDF document.");
             }
@@ -106,10 +112,10 @@ public final class AssignmentFileStorage {
         if (configuredPath == null || configuredPath.trim().isEmpty()) {
             configuredPath = "uploads";
         }
-        Path configured = Path.of(configuredPath.trim());
+        java.nio.file.Path configured = java.nio.file.Paths.get(configuredPath.trim());
         if (!configured.isAbsolute()) {
             String catalinaBase = System.getProperty("catalina.base", System.getProperty("user.home"));
-            configured = Path.of(catalinaBase).resolve(configured);
+            configured = java.nio.file.Paths.get(catalinaBase).resolve(configured);
         }
         return configured.toAbsolutePath().normalize().resolve(RELATIVE_DIRECTORY).normalize();
     }

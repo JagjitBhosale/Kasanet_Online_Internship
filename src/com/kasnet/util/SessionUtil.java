@@ -94,6 +94,30 @@ public class SessionUtil {
         return getUserId(request) != null;
     }
 
+    /**
+     * Returns the logged-in user's role from the current session.
+     * Falls back to database lookup if not cached in session.
+     *
+     * @param request the current HTTP request
+     * @return the user's role (e.g. "ADMIN", "STUDENT"), or null if not logged in
+     */
+    public static String getUserRole(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session == null) return null;
+        Object role = session.getAttribute(ATTR_USER_ROLE);
+        if (role instanceof String && !((String) role).trim().isEmpty()) {
+            return ((String) role).trim();
+        }
+        Integer userId = getUserId(request);
+        if (userId == null) return null;
+        User user = new UserDAO().getUserById(userId);
+        if (user != null && user.getRole() != null && !user.getRole().trim().isEmpty()) {
+            session.setAttribute(ATTR_USER_ROLE, user.getRole().trim());
+            return user.getRole().trim();
+        }
+        return null;
+    }
+
     public static boolean isAdmin(HttpServletRequest request) {
         return hasRole(request, "ADMIN");
     }

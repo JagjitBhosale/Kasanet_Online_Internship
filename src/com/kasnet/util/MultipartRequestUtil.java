@@ -45,7 +45,18 @@ public final class MultipartRequestUtil {
 
             byte[] value;
             try (InputStream input = part.getInputStream()) {
-                value = input.readNBytes(MAX_TEXT_FIELD_BYTES + 1);
+                java.io.ByteArrayOutputStream buffer = new java.io.ByteArrayOutputStream();
+                byte[] data = new byte[1024];
+                int nRead;
+                int totalRead = 0;
+                while ((nRead = input.read(data, 0, data.length)) != -1) {
+                    buffer.write(data, 0, nRead);
+                    totalRead += nRead;
+                    if (totalRead > MAX_TEXT_FIELD_BYTES) {
+                        break;
+                    }
+                }
+                value = buffer.toByteArray();
             }
             if (value.length > MAX_TEXT_FIELD_BYTES) {
                 throw new IllegalArgumentException("A form field exceeds the permitted size.");
