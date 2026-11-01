@@ -1,4 +1,4 @@
-<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+﻿<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
@@ -1117,7 +1117,7 @@
                                         <c:forEach items="${userList}" var="u" varStatus="status">
                                             <c:if test="${(empty u.role || fn:toUpperCase(fn:trim(u.role)) == 'STUDENT') and fn:toUpperCase(fn:trim(u.role)) != 'ADMIN' and not fn:containsIgnoreCase(u.email, 'admin')}">
                                                 <%
-                                                    com.kasnet.model.User uObj = (com.kasnet.model.User) pageContext.getAttribute("u");
+                                                    com.onlineinternshipin.model.User uObj = (com.onlineinternshipin.model.User) pageContext.getAttribute("u");
                                                     String branchDisplay = "Other";
                                                     if (uObj != null) {
                                                         try {

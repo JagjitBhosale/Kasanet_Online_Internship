@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?><project-modules id="moduleCoreId" project-version="1.5.0">
-    <wb-module deploy-name="Kasnet_Online_Internship">
+    <wb-module deploy-name="OnLineInternship.in">
         <wb-resource deploy-path="/" source-path="/WebContent" tag="defaultRootSource"/>
         <wb-resource deploy-path="/WEB-INF/classes" source-path="/src"/>
-        <property name="context-root" value="Kasnet_Online_Internship"/>
-        <property name="java-output-path" value="/Kasnet_Online_Internship/build/classes"/>
+        <property name="context-root" value="OnLineInternship.in"/>
+        <property name="java-output-path" value="/OnLineInternship.in/build/classes"/>
     </wb-module>
 </project-modules>

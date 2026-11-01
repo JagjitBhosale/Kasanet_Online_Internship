@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" 
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" 
+              name="InternshipRepositoryReport" pageWidth="595" pageHeight="842" columnWidth="555" 
+              leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" uuid="a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d">
+    <queryString>
+        <![CDATA[]]>
+    </queryString>
+    <field name="studentName" class="java.lang.String"/>
+    <field name="rollNumber" class="java.lang.String"/>
+    <field name="projectTitle" class="java.lang.String"/>
+    <title>
+        <band height="60" splitType="Stretch">
+            <staticText>
+                <reportElement x="0" y="15" width="555" height="30" uuid="b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle">
+                    <font size="16" isBold="true"/>
+                </textElement>
+                <text><![CDATA[OnLineInternship.in - Evaluation Report]]></text>
+            </staticText>
+        </band>
+    </title>
+    <detail>
+        <band height="100" splitType="Stretch"/>
+    </detail>
+</jasperReport>

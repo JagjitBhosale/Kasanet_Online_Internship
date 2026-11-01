@@ -1,12 +1,12 @@
-<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+﻿<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 <%
-    if (!com.kasnet.util.SessionUtil.requireLogin(request, response)) {
+    if (!com.onlineinternshipin.utility.SessionUtil.requireLogin(request, response)) {
         return;
     }
-    if (!com.kasnet.util.SessionUtil.isStudent(request)) {
-        if (com.kasnet.util.SessionUtil.isAdmin(request)) {
+    if (!com.onlineinternshipin.utility.SessionUtil.isStudent(request)) {
+        if (com.onlineinternshipin.utility.SessionUtil.isAdmin(request)) {
             response.sendRedirect(request.getContextPath() + "/admin/assignments");
             return;
         }
