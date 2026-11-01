@@ -1,4 +1,4 @@
-﻿<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%
     if (session.getAttribute("userId") == null) {
@@ -297,9 +297,12 @@
             <a href="${pageContext.request.contextPath}/dashboard" class="nav-link">My Dashboard</a>
             <a href="${pageContext.request.contextPath}/profile" class="nav-link">Profile</a>
             <a href="${pageContext.request.contextPath}/assignments" class="nav-link">Assignments</a>
+            <a href="${pageContext.request.contextPath}/courses" class="nav-link">Video Courses</a>
             <a href="${pageContext.request.contextPath}/lectures" class="nav-link">Lectures</a>
+            <a href="${pageContext.request.contextPath}/certifications" class="nav-link">Certifications</a>
             <a href="${pageContext.request.contextPath}/question-bank" class="nav-link active">Question Bank</a>
             <a href="${pageContext.request.contextPath}/resume-analysis" class="nav-link">Resume Analysis</a>
+            <span style="font-size: 0.88rem; color: #cbd5e0; margin-left: 6px; white-space: nowrap;">Hi, <c:out value="${not empty sessionScope.userFirstName ? sessionScope.userFirstName : (not empty sessionScope.user.firstName ? sessionScope.user.firstName : (not empty user.firstName ? user.firstName : 'Student'))}"/></span>
             <a href="${pageContext.request.contextPath}/logout" class="btn-logout">Logout</a>
         </div>
     </nav>

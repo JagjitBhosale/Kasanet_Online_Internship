@@ -28,4 +28,5 @@ _backup_*/
 Thumbs.db
 
 *.war
+WebContent/WEB-INF/classes/
 

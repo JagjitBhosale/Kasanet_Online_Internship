@@ -1,4 +1,4 @@
-﻿<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 <%
@@ -39,58 +39,60 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
             position: sticky;
             top: 0;
-            z-index: 100;
+            z-index: 1000;
         }
         .navbar-brand {
             display: flex;
             align-items: center;
             gap: 12px;
-            font-size: 1.25rem;
+            font-size: 1.15rem;
             font-weight: 700;
             text-decoration: none;
             color: #fff;
         }
-        .navbar-brand .logo-icon {
-            width: 36px;
-            height: 36px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
+        .navbar-brand img {
+            height: 32px;
+            width: auto;
+            object-fit: contain;
+            margin-right: 10px;
+            border-radius: 4px;
+            background: #ffffff;
+            padding: 2px;
         }
         .navbar-menu {
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 12px;
+            flex-wrap: wrap;
         }
         .nav-link {
             color: rgba(255,255,255,0.85);
             text-decoration: none;
-            font-size: 0.9rem;
+            font-size: 0.88rem;
             padding: 6px 12px;
             border-radius: 6px;
             transition: all 0.2s;
+            white-space: nowrap;
         }
         .nav-link:hover, .nav-link.active {
             color: #fff;
             background: rgba(255,255,255,0.15);
         }
         .btn-logout {
-            background: #e53935;
+            background: #dc2626;
             color: #fff;
             padding: 6px 14px;
             border-radius: 6px;
             text-decoration: none;
             font-size: 0.85rem;
             font-weight: 600;
+            white-space: nowrap;
             transition: background 0.2s;
         }
-        .btn-logout:hover { background: #c62828; }
+        .btn-logout:hover { background: #b91c1c; }
 
         /* ──────────── Container ──────────── */
         .container {
@@ -634,16 +636,21 @@
 
 <!-- ═══════ Navbar ═══════ -->
 <nav class="navbar">
-    <a href="${pageContext.request.contextPath}/dashboard" class="navbar-brand">
-        <div class="logo-icon">&#9670;</div>
-        Kasnet Portal
+    <a href="${pageContext.request.contextPath}/home" class="navbar-brand">
+        <img src="${pageContext.request.contextPath}/assets/images/logo.png" alt="My Internship Technologies Logo" />
+        <span>My Internship Technologies</span>
     </a>
     <div class="navbar-menu">
-        <a href="${pageContext.request.contextPath}/dashboard" class="nav-link">Dashboard</a>
-        <a href="${pageContext.request.contextPath}/courses" class="nav-link active">Courses</a>
-        <a href="${pageContext.request.contextPath}/lectures" class="nav-link">Lectures</a>
-        <a href="${pageContext.request.contextPath}/assignments" class="nav-link">Assignments</a>
+        <a href="${pageContext.request.contextPath}/home" class="nav-link">Home</a>
+        <a href="${pageContext.request.contextPath}/dashboard" class="nav-link">My Dashboard</a>
         <a href="${pageContext.request.contextPath}/profile" class="nav-link">Profile</a>
+        <a href="${pageContext.request.contextPath}/assignments" class="nav-link">Assignments</a>
+        <a href="${pageContext.request.contextPath}/courses" class="nav-link active">Video Courses</a>
+        <a href="${pageContext.request.contextPath}/lectures" class="nav-link">Lectures</a>
+        <a href="${pageContext.request.contextPath}/certifications" class="nav-link">Certifications</a>
+        <a href="${pageContext.request.contextPath}/question-bank" class="nav-link">Question Bank</a>
+        <a href="${pageContext.request.contextPath}/resume-analysis" class="nav-link">Resume Analysis</a>
+        <span style="font-size: 0.88rem; color: #cbd5e0; margin-left: 6px; white-space: nowrap;">Hi, <c:out value="${not empty sessionScope.userFirstName ? sessionScope.userFirstName : (not empty sessionScope.user.firstName ? sessionScope.user.firstName : (not empty user.firstName ? user.firstName : 'Student'))}"/></span>
         <a href="${pageContext.request.contextPath}/logout" class="btn-logout">Logout</a>
     </div>
 </nav>

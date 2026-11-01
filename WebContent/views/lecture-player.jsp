@@ -1,4 +1,4 @@
-﻿<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
 <!DOCTYPE html>
@@ -888,7 +888,8 @@
             </div>
         </div>
 
-        <div class="nav-right">
+        <div class="nav-right" style="display: flex; align-items: center; gap: 14px;">
+            <span style="font-size: 0.88rem; color: #94a3b8; white-space: nowrap;">Hi, <c:out value="${not empty sessionScope.userFirstName ? sessionScope.userFirstName : (not empty sessionScope.user.firstName ? sessionScope.user.firstName : (not empty user.firstName ? user.firstName : 'Student'))}"/></span>
             <div class="protection-shield-badge">
                 <i class="fa-solid fa-shield-halved"></i>
                 <span>Protected Video Stream</span>

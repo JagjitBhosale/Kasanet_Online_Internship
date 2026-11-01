@@ -1,4 +1,4 @@
-﻿<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
@@ -54,15 +54,15 @@
                             /* ─── Navbar ─── */
                             .navbar {
                                 background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
-                                color: #fff;
-                                padding: 12px 28px;
+                                color: #ffffff;
+                                padding: 12px 24px;
                                 display: flex;
                                 justify-content: space-between;
                                 align-items: center;
-                                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+                                box-shadow: 0 2px 8px rgba(0,0,0,0.12);
                                 position: sticky;
                                 top: 0;
-                                z-index: 50;
+                                z-index: 1000;
                             }
 
                             .navbar-brand {
@@ -72,12 +72,14 @@
                                 font-size: 1.15rem;
                                 font-weight: 700;
                                 text-decoration: none;
-                                color: #fff;
+                                color: #ffffff;
                             }
 
                             .navbar-brand img {
                                 height: 32px;
                                 width: auto;
+                                object-fit: contain;
+                                margin-right: 10px;
                                 border-radius: 4px;
                                 background: #ffffff;
                                 padding: 2px;
@@ -86,38 +88,40 @@
                             .navbar-menu {
                                 display: flex;
                                 align-items: center;
-                                gap: 14px;
+                                gap: 12px;
+                                flex-wrap: wrap;
                             }
 
                             .nav-link {
                                 color: rgba(255, 255, 255, 0.85);
                                 text-decoration: none;
-                                font-size: 0.9rem;
-                                font-weight: 500;
+                                font-size: 0.88rem;
                                 padding: 6px 12px;
                                 border-radius: 6px;
                                 transition: all 0.2s;
+                                white-space: nowrap;
                             }
 
                             .nav-link:hover,
                             .nav-link.active {
-                                color: #fff;
-                                background: rgba(255, 255, 255, 0.18);
+                                color: #ffffff;
+                                background: rgba(255, 255, 255, 0.15);
                             }
 
                             .btn-logout {
-                                background: #ef4444;
-                                color: #fff;
+                                background: #dc2626;
+                                color: #ffffff;
                                 padding: 6px 14px;
                                 border-radius: 6px;
                                 text-decoration: none;
                                 font-size: 0.85rem;
                                 font-weight: 600;
+                                white-space: nowrap;
                                 transition: background 0.2s;
                             }
 
                             .btn-logout:hover {
-                                background: #dc2626;
+                                background: #b91c1c;
                             }
 
                             /* ─── Container ─── */
@@ -366,25 +370,6 @@
                                 margin-bottom: 4px;
                             }
 
-<<<<<<< HEAD
-    <!-- Navbar -->
-    <nav class="navbar">
-        <a href="${pageContext.request.contextPath}/home" class="navbar-brand">
-            <img src="${pageContext.request.contextPath}/assets/images/logo.png" alt="My Internship Technologies Logo" style="height: 32px; width: auto; object-fit: contain; margin-right: 10px; border-radius: 4px; background: #ffffff; padding: 2px;" />
-            <span>My Internship Technologies</span>
-        </a>
-        <div class="navbar-menu">
-            <a href="${pageContext.request.contextPath}/home" class="nav-link">Home</a>
-            <a href="${pageContext.request.contextPath}/dashboard" class="nav-link">Dashboard</a>
-            <a href="${pageContext.request.contextPath}/profile" class="nav-link">Profile</a>
-            <a href="${pageContext.request.contextPath}/assignments" class="nav-link">Assignments</a>
-            <a href="${pageContext.request.contextPath}/lectures" class="nav-link active">Lectures</a>
-            <a href="${pageContext.request.contextPath}/question-bank" class="nav-link">Question Bank</a>
-            <a href="${pageContext.request.contextPath}/resume-analysis" class="nav-link">Resume Analysis</a>
-            <a href="${pageContext.request.contextPath}/logout" class="btn-logout">Logout</a>
-        </div>
-    </nav>
-=======
                             .lecture-title {
                                 font-size: 1.15rem;
                                 font-weight: 750;
@@ -392,7 +377,6 @@
                                 margin-bottom: 6px;
                                 line-height: 1.35;
                             }
->>>>>>> 34dfc21 (Fix database configuration, add course management and lecture streaming, untrack target directory)
 
                             .lecture-subject {
                                 font-size: 0.82rem;
@@ -532,19 +516,20 @@
                         <!-- ═══════ Navbar ═══════ -->
                         <nav class="navbar">
                             <a href="${pageContext.request.contextPath}/home" class="navbar-brand">
-                                <img src="${pageContext.request.contextPath}/assets/images/logo.png" alt="Kasnet Logo"
-                                    onerror="this.style.display='none'" />
-                                <span>Kasnet Internship Portal</span>
+                                <img src="${pageContext.request.contextPath}/assets/images/logo.png" alt="My Internship Technologies Logo" />
+                                <span>My Internship Technologies</span>
                             </a>
                             <div class="navbar-menu">
                                 <a href="${pageContext.request.contextPath}/home" class="nav-link">Home</a>
-                                <a href="${pageContext.request.contextPath}/dashboard" class="nav-link">Dashboard</a>
-                                <a href="${pageContext.request.contextPath}/courses" class="nav-link">Courses</a>
-                                <a href="${pageContext.request.contextPath}/lectures"
-                                    class="nav-link active">Lectures</a>
-                                <a href="${pageContext.request.contextPath}/assignments"
-                                    class="nav-link">Assignments</a>
+                                <a href="${pageContext.request.contextPath}/dashboard" class="nav-link">My Dashboard</a>
                                 <a href="${pageContext.request.contextPath}/profile" class="nav-link">Profile</a>
+                                <a href="${pageContext.request.contextPath}/assignments" class="nav-link">Assignments</a>
+                                <a href="${pageContext.request.contextPath}/courses" class="nav-link">Video Courses</a>
+                                <a href="${pageContext.request.contextPath}/lectures" class="nav-link active">Lectures</a>
+                                <a href="${pageContext.request.contextPath}/certifications" class="nav-link">Certifications</a>
+                                <a href="${pageContext.request.contextPath}/question-bank" class="nav-link">Question Bank</a>
+                                <a href="${pageContext.request.contextPath}/resume-analysis" class="nav-link">Resume Analysis</a>
+                                <span style="font-size: 0.88rem; color: #cbd5e0; margin-left: 6px; white-space: nowrap;">Hi, <c:out value="${not empty sessionScope.userFirstName ? sessionScope.userFirstName : (not empty sessionScope.user.firstName ? sessionScope.user.firstName : (not empty user.firstName ? user.firstName : 'Student'))}"/></span>
                                 <a href="${pageContext.request.contextPath}/logout" class="btn-logout">Logout</a>
                             </div>
                         </nav>

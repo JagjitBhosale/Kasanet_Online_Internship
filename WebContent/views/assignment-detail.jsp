@@ -1,4 +1,4 @@
-﻿<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 <%
@@ -44,9 +44,17 @@
             background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
             color: #fff;
             box-shadow: 0 2px 8px rgba(0,0,0,.12);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
         }
-        .brand { display: flex; align-items: center; gap: 12px; color: #fff; font-size: 1.15rem; font-weight: 700; }
+        .brand { display: flex; align-items: center; gap: 12px; color: #fff; font-size: 1.15rem; font-weight: 700; text-decoration: none; }
         .brand img { width: auto; height: 32px; margin-right: 10px; padding: 2px; border-radius: 4px; background: #fff; object-fit: contain; }
+        .navbar-menu { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .nav-link { color: rgba(255,255,255,0.85); text-decoration: none; font-size: 0.88rem; padding: 6px 12px; border-radius: 6px; transition: all 0.2s; white-space: nowrap; }
+        .nav-link:hover, .nav-link.active { color: #ffffff; background: rgba(255,255,255,0.15); }
+        .btn-logout { background: #dc2626; color: #ffffff; padding: 6px 14px; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 600; white-space: nowrap; transition: background 0.2s; }
+        .btn-logout:hover { background: #b91c1c; }
         .container { width: min(100% - 40px, 1000px); margin: 34px auto 64px; }
         .back-link {
             display: inline-flex;
@@ -94,9 +102,22 @@
 </head>
 <body>
 <nav class="navbar">
-    <div class="brand">
+    <a href="${pageContext.request.contextPath}/home" class="brand">
         <img src="${pageContext.request.contextPath}/assets/images/logo.png" alt="My Internship Technologies Logo">
         <span>My Internship Technologies</span>
+    </a>
+    <div class="navbar-menu">
+        <a href="${pageContext.request.contextPath}/home" class="nav-link">Home</a>
+        <a href="${pageContext.request.contextPath}/dashboard" class="nav-link">My Dashboard</a>
+        <a href="${pageContext.request.contextPath}/profile" class="nav-link">Profile</a>
+        <a href="${pageContext.request.contextPath}/assignments" class="nav-link active">Assignments</a>
+        <a href="${pageContext.request.contextPath}/courses" class="nav-link">Video Courses</a>
+        <a href="${pageContext.request.contextPath}/lectures" class="nav-link">Lectures</a>
+        <a href="${pageContext.request.contextPath}/certifications" class="nav-link">Certifications</a>
+        <a href="${pageContext.request.contextPath}/question-bank" class="nav-link">Question Bank</a>
+        <a href="${pageContext.request.contextPath}/resume-analysis" class="nav-link">Resume Analysis</a>
+        <span style="font-size: 0.88rem; color: #cbd5e0; margin-left: 6px; white-space: nowrap;">Hi, <c:out value="${not empty sessionScope.userFirstName ? sessionScope.userFirstName : (not empty sessionScope.user.firstName ? sessionScope.user.firstName : (not empty user.firstName ? user.firstName : 'Student'))}"/></span>
+        <a href="${pageContext.request.contextPath}/logout" class="btn-logout">Logout</a>
     </div>
 </nav>
 <main class="container">

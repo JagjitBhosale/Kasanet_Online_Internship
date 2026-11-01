@@ -57,7 +57,7 @@ public class HomeDAO {
 
         // 3. Lecture stats
         String lectureSql = "SELECT " +
-                            "(SELECT COUNT(*) FROM lectures WHERE is_active = 1) AS total_lectures, " +
+                            "(SELECT COUNT(*) FROM lectures WHERE status = 'PUBLISHED') AS total_lectures, " +
                             "(SELECT COUNT(*) FROM lecture_progress WHERE user_id = ? AND is_completed = 1) AS completed_lectures";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(lectureSql)) {

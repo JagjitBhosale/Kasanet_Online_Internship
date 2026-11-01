@@ -1,4 +1,4 @@
-﻿<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 <%
@@ -144,10 +144,12 @@
             <a href="${pageContext.request.contextPath}/dashboard" class="nav-link active" aria-current="page">My Dashboard</a>
             <a href="${pageContext.request.contextPath}/profile" class="nav-link">Profile</a>
             <a href="${pageContext.request.contextPath}/assignments" class="nav-link">Assignments</a>
+            <a href="${pageContext.request.contextPath}/courses" class="nav-link">Video Courses</a>
             <a href="${pageContext.request.contextPath}/lectures" class="nav-link">Lectures</a>
+            <a href="${pageContext.request.contextPath}/certifications" class="nav-link">Certifications</a>
             <a href="${pageContext.request.contextPath}/question-bank" class="nav-link">Question Bank</a>
             <a href="${pageContext.request.contextPath}/resume-analysis" class="nav-link">Resume Analysis</a>
-            <span style="font-size: 0.88rem; color: #cbd5e0; margin-left: 6px;">Hi, <c:out value="${user.firstName}"/></span>
+            <span style="font-size: 0.88rem; color: #cbd5e0; margin-left: 6px; white-space: nowrap;">Hi, <c:out value="${not empty sessionScope.userFirstName ? sessionScope.userFirstName : (not empty sessionScope.user.firstName ? sessionScope.user.firstName : (not empty user.firstName ? user.firstName : 'Student'))}"/></span>
             <a href="${pageContext.request.contextPath}/logout" class="btn-logout">Logout</a>
         </nav>
     </header>
@@ -157,6 +159,8 @@
             <h2 class="sidebar-title">My Dashboard</h2>
             <a href="${pageContext.request.contextPath}/dashboard?section=student-profile" class="section-link ${selectedSection eq 'student-profile' ? 'active' : ''}" aria-current="${selectedSection eq 'student-profile' ? 'page' : 'false'}">Student Profile</a>
             <a href="${pageContext.request.contextPath}/dashboard?section=assignment" class="section-link ${selectedSection eq 'assignment' ? 'active' : ''}" aria-current="${selectedSection eq 'assignment' ? 'page' : 'false'}">Assignment Details</a>
+            <a href="${pageContext.request.contextPath}/courses" class="section-link">Video Courses</a>
+            <a href="${pageContext.request.contextPath}/lectures" class="section-link">Lectures</a>
             <a href="${pageContext.request.contextPath}/dashboard?section=projects" class="section-link ${selectedSection eq 'projects' ? 'active' : ''}" aria-current="${selectedSection eq 'projects' ? 'page' : 'false'}">Project</a>
             <a href="${pageContext.request.contextPath}/dashboard?section=certificates" class="section-link ${selectedSection eq 'certificates' ? 'active' : ''}" aria-current="${selectedSection eq 'certificates' ? 'page' : 'false'}">Global Certification</a>
             <a href="${pageContext.request.contextPath}/dashboard?section=report-details" class="section-link ${selectedSection eq 'report-details' ? 'active' : ''}" aria-current="${selectedSection eq 'report-details' ? 'page' : 'false'}">Report</a>

@@ -118,10 +118,12 @@ public class LoginServlet extends HttpServlet {
             HttpSession newSession = request.getSession(true);
 
             // Populate session attributes
-            newSession.setAttribute("userId",    user.getUserId());
-            newSession.setAttribute("userName",  user.getFirstName() + " " + user.getLastName());
-            newSession.setAttribute("userEmail", user.getEmail());
-            newSession.setAttribute("userRole",  user.getRole());
+            newSession.setAttribute("userId",        user.getUserId());
+            newSession.setAttribute("userName",      user.getFirstName() + " " + user.getLastName());
+            newSession.setAttribute("userFirstName", user.getFirstName());
+            newSession.setAttribute("user",          user);
+            newSession.setAttribute("userEmail",     user.getEmail());
+            newSession.setAttribute("userRole",      user.getRole());
             newSession.setAttribute("loginSuccessAlert", true);
 
             // Optional: set a reasonable session timeout (30 minutes)

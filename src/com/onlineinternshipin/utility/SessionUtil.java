@@ -256,6 +256,20 @@ public class SessionUtil {
     public static boolean requireLogin(HttpServletRequest request,
                                        HttpServletResponse response) throws IOException {
         if (isLoggedIn(request)) {
+            HttpSession session = request.getSession(false);
+            if (session != null && session.getAttribute("userFirstName") == null) {
+                Integer userId = getUserId(request);
+                if (userId != null) {
+                    com.onlineinternshipin.model.User user = new com.onlineinternshipin.dao.UserDAO().getUserById(userId);
+                    if (user != null) {
+                        session.setAttribute("user", user);
+                        session.setAttribute("userFirstName", user.getFirstName());
+                        if (session.getAttribute(ATTR_USER_NAME) == null) {
+                            session.setAttribute(ATTR_USER_NAME, user.getFirstName() + " " + user.getLastName());
+                        }
+                    }
+                }
+            }
             return true; // user is authenticated — proceed normally
         }
         // Build the absolute redirect URL: context-path + /login

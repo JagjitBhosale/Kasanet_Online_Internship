@@ -1,4 +1,4 @@
-﻿<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 <%
@@ -135,8 +135,18 @@
             </a>
         </li>
         <li class="sidebar-menu-item">
+            <a href="${pageContext.request.contextPath}/admin/courses" class="sidebar-link">
+                <span class="sidebar-link-content"><span class="sidebar-link-icon">🎥</span><span>Courses &amp; Lectures</span></span>
+            </a>
+        </li>
+        <li class="sidebar-menu-item">
             <a href="${pageContext.request.contextPath}/admin?tab=certificates" class="sidebar-link">
                 <span class="sidebar-link-content"><span class="sidebar-link-icon">📜</span><span>Global Certification</span></span>
+            </a>
+        </li>
+        <li class="sidebar-menu-item">
+            <a href="${pageContext.request.contextPath}/admin?tab=offer-letter" class="sidebar-link">
+                <span class="sidebar-link-content"><span class="sidebar-link-icon">📄</span><span>Certification</span></span>
             </a>
         </li>
         <li class="sidebar-menu-item">
