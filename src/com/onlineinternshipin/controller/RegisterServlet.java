@@ -1,6 +1,6 @@
 package com.onlineinternshipin.controller;
 
-import com.onlineinternshipin.model.User;
+import com.onlineinternshipin.model.Student;
 import com.onlineinternshipin.utility.AuthenticationService;
 import com.onlineinternshipin.utility.ValidationUtil;
 
@@ -11,12 +11,24 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.security.SecureRandom;
+
+/**
+ * RegisterServlet - Student registration controller.
+ * Handles GET (shows registration form with CAPTCHA) and POST (processes registration).
+ * Stores records into the production 'student' table.
+ */
 public class RegisterServlet extends HttpServlet {
 
+    private static final long serialVersionUID = 1L;
     private static final String CAPTCHA_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final int CAPTCHA_LENGTH = 5;
 
-    private AuthenticationService authService = new AuthenticationService();
+    private AuthenticationService authService;
+
+    @Override
+    public void init() throws ServletException {
+        this.authService = new AuthenticationService();
+    }
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
@@ -39,7 +51,6 @@ public class RegisterServlet extends HttpServlet {
         String email = req.getParameter("email");
         String password = req.getParameter("password");
         String confirmPass = req.getParameter("confirmPassword");
-        String role = req.getParameter("role");
         String stream = req.getParameter("stream");
         String branchName = req.getParameter("branchName");
         String collegeName = req.getParameter("collegeName");
@@ -51,6 +62,18 @@ public class RegisterServlet extends HttpServlet {
             captchaInput = req.getParameter("captcha");
         }
 
+        // Preserve input fields for form redisplay upon error
+        req.setAttribute("enteredFirstName", sanitize(firstName));
+        req.setAttribute("enteredLastName", sanitize(lastName));
+        req.setAttribute("enteredCountryCode", sanitize(countryCode));
+        req.setAttribute("enteredMobile", sanitize(mobile));
+        req.setAttribute("enteredEmail", sanitize(email));
+        req.setAttribute("enteredStream", sanitize(stream));
+        req.setAttribute("enteredBranchName", sanitize(branchName));
+        req.setAttribute("enteredCollegeName", sanitize(collegeName));
+        req.setAttribute("enteredCity", sanitize(city));
+        req.setAttribute("enteredReferralCode", sanitize(referralCode));
+
         HttpSession session = req.getSession(false);
 
         // Required field validation
@@ -61,7 +84,19 @@ public class RegisterServlet extends HttpServlet {
             return;
         }
 
-        // Mobile validation (exactly 10 digits)
+        // CAPTCHA validation
+        if (session != null) {
+            String expectedCaptcha = (String) session.getAttribute("captcha");
+            if (expectedCaptcha == null) {
+                expectedCaptcha = (String) session.getAttribute("regCaptcha");
+            }
+            if (expectedCaptcha != null && (captchaInput == null || !expectedCaptcha.equalsIgnoreCase(captchaInput.trim()))) {
+                forwardWithError(req, resp, "Incorrect security code (CAPTCHA). Please try again.");
+                return;
+            }
+        }
+
+        // Mobile validation (exactly 10 numeric digits)
         if (!ValidationUtil.isValidMobile(mobile)) {
             forwardWithError(req, resp, "Phone number must be exactly 10 digits.");
             return;
@@ -83,22 +118,37 @@ public class RegisterServlet extends HttpServlet {
             return;
         }
 
-        // Build User object (Strictly STUDENT for public registration)
-        User user = new User();
-        user.setFirstName(firstName.trim());
-        user.setLastName(lastName.trim());
-        user.setEmail(email.trim().toLowerCase());
-        user.setCountryCode(countryCode != null ? countryCode.trim() : "+91");
-        user.setMobile(mobile.trim());
-        user.setRole("STUDENT");
-        user.setStream(stream != null ? stream.trim() : "Graduation");
-        user.setBranch(branchName != null ? branchName.trim() : "");
-        user.setCollegeName(collegeName != null ? collegeName.trim() : "");
-        user.setCity(city != null ? city.trim() : "");
-        user.setReferralCode(referralCode != null ? referralCode.trim() : "");
+        // Construct Student model matching production 'student' table
+        Student student = new Student();
+        student.setFname(firstName.trim());
+        student.setLname(lastName.trim());
+        student.setEmail(email.trim().toLowerCase());
+        student.setPhone(mobile.trim());
+        student.setCity(city.trim());
+        student.setGradCollegeName(collegeName.trim());
+
+        String resolvedStream = (branchName != null && !branchName.trim().isEmpty())
+                ? branchName.trim() : (stream != null ? stream.trim() : "Graduation");
+        student.setGradStream(resolvedStream);
+
+        if (referralCode != null && !referralCode.trim().isEmpty()) {
+            student.setReferalCode(referralCode.trim());
+            student.setReferalText(referralCode.trim());
+        }
+
+        int cCode = 91;
+        if (countryCode != null) {
+            String digits = countryCode.replaceAll("[^0-9]", "");
+            if (!digits.isEmpty()) {
+                try { cCode = Integer.parseInt(digits); } catch (NumberFormatException ignored) {}
+            }
+        }
+        student.setCountryCodeInt(cCode);
+        student.setActive(1);
 
         try {
-            authService.register(user, password);
+            authService.register(student, password);
+
             HttpSession newSession = req.getSession(true);
             newSession.setAttribute("registrationSuccess", true);
             resp.sendRedirect(req.getContextPath() + "/?registered=success");
@@ -129,5 +179,10 @@ public class RegisterServlet extends HttpServlet {
 
     private boolean isNullOrBlank(String s) {
         return s == null || s.trim().isEmpty();
+    }
+
+    private String sanitize(String input) {
+        if (input == null) return "";
+        return input.replaceAll("[<>\"'&]", "").trim();
     }
 }

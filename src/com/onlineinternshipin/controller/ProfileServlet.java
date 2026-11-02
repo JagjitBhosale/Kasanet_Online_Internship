@@ -31,6 +31,11 @@ public class ProfileServlet extends HttpServlet {
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         if (!SessionUtil.requireLogin(req, resp)) return;
 
+        if (SessionUtil.isAdmin(req)) {
+            resp.sendRedirect(req.getContextPath() + "/admin");
+            return;
+        }
+
         Integer userId = SessionUtil.getUserId(req);
         if (userId == null) {
             resp.sendRedirect(req.getContextPath() + "/login");

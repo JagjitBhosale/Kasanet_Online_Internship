@@ -34,6 +34,7 @@ public class SessionUtil {
 
     /** Session key for the logged-in user's display name. */
     public static final String ATTR_USER_NAME = "userName";
+    public static final String ATTR_USER_EMAIL = "userEmail";
     public static final String ATTR_USER_ROLE = "userRole";
     public static final String ATTR_CSRF_TOKEN = "csrfToken";
 
@@ -108,6 +109,14 @@ public class SessionUtil {
         if (role instanceof String && !((String) role).trim().isEmpty()) {
             return ((String) role).trim();
         }
+        Object userEmail = session.getAttribute(ATTR_USER_EMAIL);
+        if (userEmail instanceof String && !((String) userEmail).trim().isEmpty()) {
+            User user = new UserDAO().getUserByEmail(((String) userEmail).trim());
+            if (user != null && user.getRole() != null && !user.getRole().trim().isEmpty()) {
+                session.setAttribute(ATTR_USER_ROLE, user.getRole().trim());
+                return user.getRole().trim();
+            }
+        }
         Integer userId = getUserId(request);
         if (userId == null) return null;
         User user = new UserDAO().getUserById(userId);
@@ -128,15 +137,26 @@ public class SessionUtil {
 
     private static boolean hasRole(HttpServletRequest request, String role) {
         HttpSession session = request.getSession(false);
-        Object sessionRole = session == null ? null : session.getAttribute(ATTR_USER_ROLE);
+        if (session == null) {
+            return false;
+        }
+        Object sessionRole = session.getAttribute(ATTR_USER_ROLE);
         if (sessionRole instanceof String && !((String) sessionRole).trim().isEmpty()) {
-            String normalizedSessionRole = ((String) sessionRole).trim();
-            if (role.equalsIgnoreCase(normalizedSessionRole)) {
-                return true;
+            return role.equalsIgnoreCase(((String) sessionRole).trim());
+        }
+
+        Object userEmail = session.getAttribute(ATTR_USER_EMAIL);
+        if (userEmail instanceof String && !((String) userEmail).trim().isEmpty()) {
+            User user = new UserDAO().getUserByEmail(((String) userEmail).trim());
+            if (user != null && user.getRole() != null && !user.getRole().trim().isEmpty()) {
+                String databaseRole = user.getRole().trim();
+                session.setAttribute(ATTR_USER_ROLE, databaseRole);
+                return role.equalsIgnoreCase(databaseRole);
             }
         }
+
         Integer userId = getUserId(request);
-        if (userId == null || session == null) {
+        if (userId == null) {
             return false;
         }
 
@@ -254,7 +274,7 @@ public class SessionUtil {
      * @throws IOException if the redirect write fails
      */
     public static boolean requireLogin(HttpServletRequest request,
-                                       HttpServletResponse response) throws IOException {
+                                        HttpServletResponse response) throws IOException {
         if (isLoggedIn(request)) {
             HttpSession session = request.getSession(false);
             if (session != null && session.getAttribute("userFirstName") == null) {

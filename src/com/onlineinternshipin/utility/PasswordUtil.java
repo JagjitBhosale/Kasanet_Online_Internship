@@ -2,71 +2,36 @@ package com.onlineinternshipin.utility;
 
 import org.mindrot.jbcrypt.BCrypt;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+
 /**
  * PasswordUtil - BCrypt Password Hashing Utility
  *
  * Provides secure password hashing and verification using the BCrypt algorithm.
- * BCrypt is intentionally slow, making brute-force attacks computationally expensive.
- *
- * Maven dependency required in pom.xml:
- *   <dependency>
- *       <groupId>org.mindrot</groupId>
- *       <artifactId>jbcrypt</artifactId>
- *       <version>0.4</version>
- *   </dependency>
- *
- * Usage:
- *   String hash = PasswordUtil.hashPassword("mySecret123!");
- *   boolean ok   = PasswordUtil.checkPassword("mySecret123!", hash);
+ * Supports legacy formats (plain-text, MD5, SHA-1) for backward compatibility
+ * with pre-existing database records.
  */
 public class PasswordUtil {
 
-    /**
-     * BCrypt work factor (cost parameter).
-     * 2^ROUNDS iterations are performed during hashing.
-     * 12 is the recommended minimum for production (≈ 250–300 ms on modern hardware).
-     * Increase to 13 or 14 if server capacity allows.
-     */
     private static final int ROUNDS = 12;
 
-    // Private constructor — utility class, not meant to be instantiated
     private PasswordUtil() {
         throw new UnsupportedOperationException("PasswordUtil is a utility class.");
     }
 
-    // -------------------------------------------------------------------------
-    // Public API
-    // -------------------------------------------------------------------------
-
     /**
-     * Hashes a plain-text password using BCrypt with a work factor of {@value #ROUNDS}.
-     *
-     * <p>A cryptographically random salt is generated automatically by BCrypt
-     * and embedded in the returned hash string — you do <em>not</em> need to
-     * store the salt separately.</p>
-     *
-     * @param plainText the raw password entered by the user (must not be null or empty)
-     * @return a BCrypt hash string (60 characters, e.g. {@code $2a$12$...})
-     * @throws IllegalArgumentException if {@code plainText} is null or empty
+     * Hashes a plain-text password using BCrypt with work factor of 12.
      */
     public static String hashPassword(String plainText) {
         if (plainText == null || plainText.isEmpty()) {
             throw new IllegalArgumentException("Password must not be null or empty.");
         }
-        // BCrypt.gensalt(ROUNDS) generates a random salt encoded with the work factor
         return BCrypt.hashpw(plainText, BCrypt.gensalt(ROUNDS));
     }
 
     /**
-     * Verifies a plain-text password against a previously computed BCrypt hash.
-     *
-     * <p>This method is safe against timing attacks because BCrypt's comparison
-     * always takes roughly the same amount of time regardless of how early the
-     * strings differ.</p>
-     *
-     * @param plainText the raw password entered by the user
-     * @param hash      the BCrypt hash stored in the database
-     * @return {@code true} if the password matches the hash; {@code false} otherwise
+     * Verifies a plain-text password against a hash or legacy password string.
      */
     public static boolean checkPassword(String plainText, String hash) {
         if (plainText == null || plainText.isEmpty()) {
@@ -75,12 +40,53 @@ public class PasswordUtil {
         if (hash == null || hash.isEmpty()) {
             return false;
         }
-        try {
-            return BCrypt.checkpw(plainText, hash);
-        } catch (IllegalArgumentException e) {
-            // Thrown if the hash string is malformed (not a valid BCrypt hash)
-            System.err.println("[PasswordUtil] Invalid hash format: " + e.getMessage());
-            return false;
+
+        // 1. Check if string is a valid BCrypt hash ($2a$, $2b$, $2y$)
+        if (hash.startsWith("$2a$") || hash.startsWith("$2b$") || hash.startsWith("$2y$")) {
+            try {
+                return BCrypt.checkpw(plainText, hash);
+            } catch (IllegalArgumentException e) {
+                return false;
+            }
         }
+
+        // 2. Direct comparison for plain-text passwords (exact or trimmed)
+        if (plainText.equals(hash) || plainText.equals(hash.trim())) {
+            return true;
+        }
+
+        // 3. Fallback for 32-char hex (MD5)
+        if (hash.trim().length() == 32) {
+            try {
+                MessageDigest md = MessageDigest.getInstance("MD5");
+                byte[] digest = md.digest(plainText.getBytes(StandardCharsets.UTF_8));
+                StringBuilder hexString = new StringBuilder();
+                for (byte b : digest) {
+                    hexString.append(String.format("%02x", b));
+                }
+                if (hexString.toString().equalsIgnoreCase(hash.trim())) {
+                    return true;
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
+        // 4. Fallback for 40-char hex (SHA-1)
+        if (hash.trim().length() == 40) {
+            try {
+                MessageDigest md = MessageDigest.getInstance("SHA-1");
+                byte[] digest = md.digest(plainText.getBytes(StandardCharsets.UTF_8));
+                StringBuilder hexString = new StringBuilder();
+                for (byte b : digest) {
+                    hexString.append(String.format("%02x", b));
+                }
+                if (hexString.toString().equalsIgnoreCase(hash.trim())) {
+                    return true;
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
+        return false;
     }
 }

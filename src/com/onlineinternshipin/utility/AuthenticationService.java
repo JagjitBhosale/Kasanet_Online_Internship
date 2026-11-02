@@ -1,79 +1,107 @@
 package com.onlineinternshipin.utility;
 
-import com.onlineinternshipin.dao.ProfileDAO;
-import com.onlineinternshipin.dao.UserDAO;
+import com.onlineinternshipin.dao.AdminDAO;
+import com.onlineinternshipin.dao.StudentDAO;
+import com.onlineinternshipin.model.Student;
 import com.onlineinternshipin.model.User;
-import com.onlineinternshipin.utility.PasswordUtil;
 
-import java.sql.Timestamp;
 import java.sql.SQLException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
+/**
+ * AuthenticationService - Handles student registration, credential verification,
+ * and session login workflows against the production 'student' and 'admin' tables.
+ */
 public class AuthenticationService {
 
-    private final UserDAO userDAO;
-    private final ProfileDAO profileDAO;
-
-    public AuthenticationService() {
-        this.userDAO = new UserDAO();
-        this.profileDAO = new ProfileDAO();
-    }
-
-    public AuthenticationService(UserDAO userDAO, ProfileDAO profileDAO) {
-        this.userDAO = userDAO;
-        this.profileDAO = profileDAO;
-    }
-
-    public User register(User user, String plainPassword) throws Exception {
-        if (user == null) {
-            throw new IllegalArgumentException("User data cannot be null.");
-        }
-        if (user.getEmail() == null || user.getEmail().trim().isEmpty()) {
-            throw new IllegalArgumentException("Email address is required.");
-        }
-        if (plainPassword == null || plainPassword.trim().isEmpty()) {
-            throw new IllegalArgumentException("Password is required.");
-        }
-        if (user.getFirstName() == null || user.getFirstName().trim().isEmpty()) {
-            throw new IllegalArgumentException("First name is required.");
-        }
-        if (user.getLastName() == null || user.getLastName().trim().isEmpty()) {
-            throw new IllegalArgumentException("Last name is required.");
-        }
-
-        String normalizedEmail = user.getEmail().trim().toLowerCase();
-        user.setEmail(normalizedEmail);
-
-        if (userDAO.emailExists(normalizedEmail)) {
-            throw new Exception("An account with this email already exists.");
-        }
-
-        if (user.getMobile() != null && !user.getMobile().trim().isEmpty()) {
-            if (userDAO.mobileExists(user.getMobile().trim())) {
-                throw new Exception("Mobile number is already registered.");
-            }
-        }
-
-        // Hash password with BCrypt
-        String hashedPassword = PasswordUtil.hashPassword(plainPassword);
-        user.setPasswordHash(hashedPassword);
-        user.setActive(true);
-        user.setCreatedAt(new Timestamp(System.currentTimeMillis()));
-
-        User registeredUser = userDAO.registerUser(user);
-        if (registeredUser == null || registeredUser.getUserId() <= 0) {
-            throw new Exception("Registration failed. Please try again.");
-        }
-
-        // Initialize default profile
-        profileDAO.createProfile(registeredUser.getUserId());
-
-        return registeredUser;
-    }
+    private static final Logger LOGGER = Logger.getLogger(AuthenticationService.class.getName());
 
     public static final String TEST_STUDENT_EMAIL = "test@kasnet.in";
     public static final String TEST_STUDENT_EMAIL_ALT = "test@myinternshiptech.com";
     public static final String TEST_STUDENT_PASSWORD = "Test@12345";
 
+    private final StudentDAO studentDAO;
+    private final AdminDAO adminDAO;
+
+    public AuthenticationService() {
+        this.studentDAO = new StudentDAO();
+        this.adminDAO = new AdminDAO();
+    }
+
+    public AuthenticationService(StudentDAO studentDAO, AdminDAO adminDAO) {
+        this.studentDAO = studentDAO;
+        this.adminDAO = adminDAO;
+    }
+
+    // -------------------------------------------------------------------------
+    // Registration Workflow
+    // -------------------------------------------------------------------------
+    public Student register(Student student, String plainPassword) throws Exception {
+        if (student == null) {
+            throw new IllegalArgumentException("Student registration data cannot be null.");
+        }
+        if (student.getEmail() == null || student.getEmail().trim().isEmpty()) {
+            throw new IllegalArgumentException("Email address is required.");
+        }
+        if (plainPassword == null || plainPassword.trim().isEmpty()) {
+            throw new IllegalArgumentException("Password is required.");
+        }
+        if (student.getFname() == null || student.getFname().trim().isEmpty()) {
+            throw new IllegalArgumentException("First name is required.");
+        }
+        if (student.getLname() == null || student.getLname().trim().isEmpty()) {
+            throw new IllegalArgumentException("Last name is required.");
+        }
+
+        String normalizedEmail = student.getEmail().trim().toLowerCase();
+        student.setEmail(normalizedEmail);
+
+        // 1. Duplicate email check
+        if (studentDAO.emailExists(normalizedEmail)) {
+            throw new Exception("An account with this email already exists.");
+        }
+
+        // 2. Duplicate mobile check
+        if (student.getPhone() != null && !student.getPhone().trim().isEmpty()) {
+            if (studentDAO.phoneExists(student.getPhone().trim())) {
+                throw new Exception("Phone number is already registered.");
+            }
+        }
+
+        // 3. BCrypt Password Hashing
+        String hashedPassword = PasswordUtil.hashPassword(plainPassword);
+        student.setPassword(hashedPassword);
+        student.setActive(1);
+
+        // 4. Persistence into production 'student' table
+        Student registeredStudent = studentDAO.registerStudent(student);
+        if (registeredStudent == null || registeredStudent.getId() <= 0) {
+            throw new Exception("Registration failed due to a database error. Please try again.");
+        }
+
+        return registeredStudent;
+    }
+
+    public User register(User user, String plainPassword) throws Exception {
+        if (user instanceof Student) {
+            return register((Student) user, plainPassword);
+        }
+        Student s = new Student();
+        s.setFname(user.getFirstName());
+        s.setLname(user.getLastName());
+        s.setEmail(user.getEmail());
+        s.setPhone(user.getMobile());
+        s.setCity(user.getCity());
+        s.setGradCollegeName(user.getCollegeName());
+        s.setGradStream(user.getStream() != null ? user.getStream() : user.getBranch());
+        s.setReferalCode(user.getReferralCode());
+        return register(s, plainPassword);
+    }
+
+    // -------------------------------------------------------------------------
+    // Login Workflow
+    // -------------------------------------------------------------------------
     public User login(String email, String password, String role) throws Exception {
         if (email == null || email.trim().isEmpty()) {
             throw new IllegalArgumentException("Email address is required.");
@@ -83,92 +111,95 @@ public class AuthenticationService {
         }
 
         String normalizedEmail = email.trim().toLowerCase();
+        String requestedRole = (role != null && !role.trim().isEmpty()) ? role.trim().toUpperCase() : "STUDENT";
 
-        // 1. Hardcoded Test ID support for testing
+        // =====================================================================
+        // 1. Admin Authentication Path (Production 'admin' table)
+        // =====================================================================
+        if ("ADMIN".equalsIgnoreCase(requestedRole)) {
+            User admin = adminDAO.getAdminByEmail(normalizedEmail);
+            if (admin == null) {
+                throw new Exception("Invalid email or password.");
+            }
+            if (!PasswordUtil.checkPassword(password, admin.getPasswordHash())) {
+                throw new Exception("Invalid email or password.");
+            }
+            return admin;
+        }
+
+        // =====================================================================
+        // 2. Student Demo Account Support
+        // =====================================================================
         if ((TEST_STUDENT_EMAIL.equalsIgnoreCase(normalizedEmail) || TEST_STUDENT_EMAIL_ALT.equalsIgnoreCase(normalizedEmail))
                 && TEST_STUDENT_PASSWORD.equals(password)) {
-            if (role != null && !role.trim().isEmpty() && !"STUDENT".equalsIgnoreCase(role.trim())) {
-                throw new Exception("Role does not match this account.");
+            Student demoStudent = studentDAO.getStudentByEmail(normalizedEmail);
+            if (demoStudent == null && TEST_STUDENT_EMAIL_ALT.equalsIgnoreCase(normalizedEmail)) {
+                demoStudent = studentDAO.getStudentByEmail(TEST_STUDENT_EMAIL);
             }
-            User dbTestUser = findUserForLogin(normalizedEmail);
-            if (dbTestUser == null && TEST_STUDENT_EMAIL_ALT.equalsIgnoreCase(normalizedEmail)) {
-                dbTestUser = findUserForLogin(TEST_STUDENT_EMAIL);
-            }
-            if (dbTestUser != null) {
-                userDAO.updateLastLogin(dbTestUser.getUserId());
-                return dbTestUser;
+            if (demoStudent != null) {
+                studentDAO.updateLastLogin(demoStudent.getId());
+                return demoStudent;
             }
 
-            User testUser = new User();
-            testUser.setFirstName("Test");
-            testUser.setLastName("Student");
-            testUser.setEmail(normalizedEmail);
-            testUser.setPasswordHash(PasswordUtil.hashPassword(TEST_STUDENT_PASSWORD));
-            testUser.setRole("STUDENT");
-            testUser.setStream("Graduation");
-            testUser.setBranch("Computer Science and Engineering");
-            testUser.setCollegeName("Institute of Technology");
-            testUser.setCity("Pune");
-            testUser.setCountryCode("+91");
+            // Create demo student if missing
+            Student s = new Student();
+            s.setFname("Test");
+            s.setLname("Student");
+            s.setEmail(normalizedEmail);
+            s.setPassword(PasswordUtil.hashPassword(TEST_STUDENT_PASSWORD));
+            s.setPhone("9876543210");
+            s.setCity("Pune");
+            s.setGradCollegeName("Institute of Technology");
+            s.setGradStream("Computer Science and Engineering");
+            s.setActive(1);
 
-            User persistedTestUser = userDAO.registerUser(testUser);
-            if (persistedTestUser == null || persistedTestUser.getUserId() <= 0) {
-                throw new Exception("Unable to create the demo student account. Check the database connection and users table.");
-            }
-            if (!profileDAO.createProfile(persistedTestUser.getUserId())) {
-                throw new Exception("Unable to initialize the demo student profile.");
-            }
-            userDAO.updateLastLogin(persistedTestUser.getUserId());
-            return persistedTestUser;
-        }
-
-        // 2. Admin login support (admin@kasnet.in / Admin@12345)
-        if ("admin@kasnet.in".equalsIgnoreCase(normalizedEmail) && "Admin@12345".equals(password)) {
-            if (role != null && !role.trim().isEmpty() && !"ADMIN".equalsIgnoreCase(role.trim())) {
-                throw new Exception("Role does not match this account.");
-            }
-            User adminUser = findUserForLogin("admin@kasnet.in");
-            if (adminUser != null) {
-                userDAO.updateLastLogin(adminUser.getUserId());
-                return adminUser;
+            Student persisted = studentDAO.registerStudent(s);
+            if (persisted != null) {
+                studentDAO.updateLastLogin(persisted.getId());
+                return persisted;
             }
         }
 
-        // 3. Database user lookup
-        User user = findUserForLogin(normalizedEmail);
+        // =====================================================================
+        // 3. Student Production Database Lookup
+        // =====================================================================
+        Student student = studentDAO.getStudentByEmail(normalizedEmail);
+        if (student == null) {
+            // Also check by phone if user entered phone in email field
+            if (normalizedEmail.matches("^[0-9]{10}$")) {
+                student = studentDAO.getStudentByPhone(normalizedEmail);
+            }
+        }
 
-        if (user == null) {
+        if (student == null) {
             throw new Exception("Invalid email or password.");
         }
 
-        // BCrypt check
-        boolean passwordMatches = PasswordUtil.checkPassword(password, user.getPasswordHash());
+        // Verify password
+        boolean passwordMatches = PasswordUtil.checkPassword(password, student.getPassword());
         if (!passwordMatches) {
             throw new Exception("Invalid email or password.");
         }
 
-        // Role check
-        if (role != null && !role.trim().isEmpty()) {
-            if (!role.trim().equalsIgnoreCase(user.getRole())) {
-                throw new Exception("Role does not match this account.");
+        // Auto-upgrade legacy plain-text password to BCrypt hash
+        if (student.getPassword() != null && !student.getPassword().startsWith("$2")) {
+            try {
+                String upgradedHash = PasswordUtil.hashPassword(password);
+                studentDAO.updatePassword(student.getId(), upgradedHash);
+                student.setPassword(upgradedHash);
+            } catch (Exception ex) {
+                LOGGER.log(Level.WARNING, "Failed to auto-upgrade password hash for student id=" + student.getId(), ex);
             }
         }
 
-        if (!user.isActive()) {
+        // Account status check
+        if (student.getActive() != null && student.getActive() == 0) {
             throw new Exception("Account is inactive. Please contact administrator.");
         }
 
-        // Update login activity
-        userDAO.updateLastLogin(user.getUserId());
+        // Update login activity in student table
+        studentDAO.updateLastLogin(student.getId());
 
-        return user;
-    }
-
-    private User findUserForLogin(String email) throws Exception {
-        try {
-            return userDAO.getUserByEmailForLogin(email);
-        } catch (SQLException e) {
-            throw new Exception("The login service cannot access the database. Check DB_URL, DB_USER, and DB_PASSWORD in your local .env file, then restart the app.", e);
-        }
+        return student;
     }
 }

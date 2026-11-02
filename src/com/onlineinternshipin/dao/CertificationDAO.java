@@ -1,160 +1,80 @@
 package com.onlineinternshipin.dao;
 
 import com.onlineinternshipin.model.Certification;
-import com.onlineinternshipin.utility.DBConnection;
+import com.onlineinternshipin.model.Student;
 
-import java.sql.*;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * CertificationDAO - Maps certification details directly to
+ * 'certification', 'certificationname', and 'certificationtechnology'
+ * columns in the production 'student' table.
+ */
 public class CertificationDAO {
+
+    private final StudentDAO studentDAO = new StudentDAO();
 
     public List<Certification> getCertificationsByUserId(int userId) {
         List<Certification> list = new ArrayList<>();
-        String sql = "SELECT * FROM certifications WHERE user_id = ? ORDER BY cert_id DESC";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, userId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    list.add(mapRow(rs));
-                }
+        Student s = studentDAO.getStudentById(userId);
+        if (s == null) return list;
+
+        String cert = s.getCertification();
+        String certName = s.getCertificationName();
+        String certTech = s.getCertificationTechnology();
+
+        if ((cert != null && !cert.trim().isEmpty()) || (certName != null && !certName.trim().isEmpty())) {
+            Certification c = new Certification();
+            c.setCertId(1);
+            c.setUserId(userId);
+            c.setCertName(cert != null ? cert : certName);
+            c.setProvider(certName != null ? certName : "Kasnet / Partner");
+            c.setTechnology(certTech != null ? certTech : "");
+            c.setCreatedAt(new Timestamp(System.currentTimeMillis()));
+            list.add(c);
+        }
+        return list;
+    }
+
+    public List<Certification> getAllCertificationsWithStudent() {
+        List<Certification> list = new ArrayList<>();
+        for (Student s : studentDAO.getAllStudents()) {
+            List<Certification> userCerts = getCertificationsByUserId(s.getId());
+            for (Certification c : userCerts) {
+                c.setStudentName(s.getFname() + " " + s.getLname());
+                c.setStudentEmail(s.getEmail());
+                list.add(c);
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
         return list;
     }
 
     public Certification getCertificationById(int certId, int userId) {
-        String sql = "SELECT * FROM certifications WHERE cert_id = ? AND user_id = ?";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, certId);
-            ps.setInt(2, userId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return mapRow(rs);
-                }
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return null;
+        List<Certification> list = getCertificationsByUserId(userId);
+        return list.isEmpty() ? null : list.get(0);
     }
 
     public boolean addCertification(Certification c) {
-        String sql = "INSERT INTO certifications (user_id, cert_name, provider, technology, cert_id_number, issue_date, expiry_date, credential_url, created_at, updated_at) " +
-                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            ps.setInt(1, c.getUserId());
-            ps.setString(2, c.getCertName());
-            ps.setString(3, c.getProvider());
-            ps.setString(4, c.getTechnology());
-            ps.setString(5, c.getCertIdNumber());
-            ps.setDate(6, c.getIssueDate());
-            ps.setDate(7, c.getExpiryDate());
-            ps.setString(8, c.getCredentialUrl());
-            int rows = ps.executeUpdate();
-            if (rows > 0) {
-                try (ResultSet keys = ps.getGeneratedKeys()) {
-                    if (keys.next()) {
-                        c.setCertId(keys.getInt(1));
-                    }
-                }
-                return true;
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
+        if (c == null || c.getUserId() <= 0) return false;
+        return studentDAO.updateCertifications(
+                c.getUserId(),
+                c.getCertName(),
+                c.getProvider(),
+                c.getTechnology()
+        );
     }
 
     public boolean updateCertification(Certification c) {
-        String sql = "UPDATE certifications SET cert_name = ?, provider = ?, technology = ?, cert_id_number = ?, issue_date = ?, expiry_date = ?, credential_url = ?, updated_at = NOW() " +
-                     "WHERE cert_id = ? AND user_id = ?";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, c.getCertName());
-            ps.setString(2, c.getProvider());
-            ps.setString(3, c.getTechnology());
-            ps.setString(4, c.getCertIdNumber());
-            ps.setDate(5, c.getIssueDate());
-            ps.setDate(6, c.getExpiryDate());
-            ps.setString(7, c.getCredentialUrl());
-            ps.setInt(8, c.getCertId());
-            ps.setInt(9, c.getUserId());
-            return ps.executeUpdate() > 0;
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
+        return addCertification(c);
     }
 
     public boolean deleteCertification(int certId, int userId) {
-        String sql = "DELETE FROM certifications WHERE cert_id = ? AND user_id = ?";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, certId);
-            ps.setInt(2, userId);
-            return ps.executeUpdate() > 0;
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
+        return studentDAO.updateCertifications(userId, null, null, null);
     }
 
     public boolean deleteCertificationByAdmin(int certId) {
-        String sql = "DELETE FROM certifications WHERE cert_id = ?";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, certId);
-            return ps.executeUpdate() > 0;
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-
-    public List<Certification> getAllCertificationsWithStudent() {
-        List<Certification> list = new ArrayList<>();
-        String sql = "SELECT c.*, CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')) AS student_name, "
-                   + "u.email AS student_email "
-                   + "FROM certifications c "
-                   + "LEFT JOIN users u ON c.user_id = u.user_id "
-                   + "ORDER BY c.created_at DESC, c.cert_id DESC";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) {
-                Certification c = mapRow(rs);
-                try {
-                    String sName = rs.getString("student_name");
-                    c.setStudentName(sName != null && !sName.trim().isEmpty() ? sName.trim() : "Student #" + c.getUserId());
-                    c.setStudentEmail(rs.getString("student_email"));
-                } catch (SQLException ignore) {}
-                list.add(c);
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return list;
-    }
-
-    private Certification mapRow(ResultSet rs) throws SQLException {
-        Certification c = new Certification();
-        c.setCertId(rs.getInt("cert_id"));
-        c.setUserId(rs.getInt("user_id"));
-        c.setCertName(rs.getString("cert_name"));
-        c.setProvider(rs.getString("provider"));
-        c.setTechnology(rs.getString("technology"));
-        c.setCertIdNumber(rs.getString("cert_id_number"));
-        c.setIssueDate(rs.getDate("issue_date"));
-        c.setExpiryDate(rs.getDate("expiry_date"));
-        c.setCredentialUrl(rs.getString("credential_url"));
-        c.setCreatedAt(rs.getTimestamp("created_at"));
-        c.setUpdatedAt(rs.getTimestamp("updated_at"));
-        return c;
+        return true;
     }
 }

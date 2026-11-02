@@ -45,7 +45,11 @@ public class LoginServlet extends HttpServlet {
 
         // If user is already logged in, redirect to home
         if (SessionUtil.isLoggedIn(request)) {
-            response.sendRedirect(request.getContextPath() + "/home");
+            if (SessionUtil.isAdmin(request)) {
+                response.sendRedirect(request.getContextPath() + "/admin");
+            } else {
+                response.sendRedirect(request.getContextPath() + "/home");
+            }
             return;
         }
 

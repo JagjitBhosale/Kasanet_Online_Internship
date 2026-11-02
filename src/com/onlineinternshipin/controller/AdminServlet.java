@@ -60,14 +60,14 @@ public class AdminServlet extends HttpServlet {
         List<PlatformCertificate> platformCertificateList;
         try {
             platformCertificateList = platformCertificateDAO.getAllWithStudent();
-        } catch (java.sql.SQLException e) {
-            throw new ServletException("Unable to load platform certificates for administration.", e);
+        } catch (Exception e) {
+            platformCertificateList = java.util.Collections.emptyList();
         }
         List<PlatformProjectReport> platformProjectReportList;
         try {
             platformProjectReportList = platformProjectReportDAO.getAllWithStudent();
-        } catch (java.sql.SQLException e) {
-            throw new ServletException("Unable to load platform project reports for administration.", e);
+        } catch (Exception e) {
+            platformProjectReportList = java.util.Collections.emptyList();
         }
         Map<Integer, List<PlatformProjectReport>> projectReportsByStudent = new LinkedHashMap<>();
         for (PlatformProjectReport report : platformProjectReportList) {

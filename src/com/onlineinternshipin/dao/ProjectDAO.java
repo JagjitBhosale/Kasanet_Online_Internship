@@ -1,132 +1,63 @@
 package com.onlineinternshipin.dao;
 
 import com.onlineinternshipin.model.Project;
-import com.onlineinternshipin.utility.DBConnection;
+import com.onlineinternshipin.model.Student;
 
-import java.sql.*;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * ProjectDAO - Maps project details directly to 'Projectname' and 'projectdetails'
+ * columns in the production 'student' table.
+ */
 public class ProjectDAO {
+
+    private final StudentDAO studentDAO = new StudentDAO();
 
     public List<Project> getProjectsByUserId(int userId) {
         List<Project> list = new ArrayList<>();
-        String sql = "SELECT * FROM projects WHERE user_id = ? ORDER BY project_id DESC";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, userId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    list.add(mapRow(rs));
-                }
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
+        Student s = studentDAO.getStudentById(userId);
+        if (s == null) return list;
+
+        String pName = s.getProjectName();
+        String pDetails = s.getProjectDetails();
+
+        if (pName != null && !pName.trim().isEmpty()) {
+            Project p = new Project();
+            p.setProjectId(1);
+            p.setUserId(userId);
+            p.setProjectName(pName);
+            p.setDescription(pDetails != null ? pDetails : "");
+            p.setTechnologiesUsed(s.getTechnicalSkill() != null ? s.getTechnicalSkill() : "");
+            p.setCreatedAt(new Timestamp(System.currentTimeMillis()));
+            list.add(p);
         }
         return list;
     }
 
     public Project getProjectById(int projectId, int userId) {
-        String sql = "SELECT * FROM projects WHERE project_id = ? AND user_id = ?";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, projectId);
-            ps.setInt(2, userId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return mapRow(rs);
-                }
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return null;
+        List<Project> list = getProjectsByUserId(userId);
+        return list.isEmpty() ? null : list.get(0);
     }
 
     public boolean addProject(Project p) {
-        String sql = "INSERT INTO projects (user_id, project_name, description, technologies_used, role, project_type, team_size, start_date, end_date, project_url, github_url, created_at, updated_at) " +
-                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            ps.setInt(1, p.getUserId());
-            ps.setString(2, p.getProjectName());
-            ps.setString(3, p.getDescription());
-            ps.setString(4, p.getTechnologiesUsed());
-            ps.setString(5, p.getRole());
-            ps.setString(6, p.getProjectType());
-            ps.setInt(7, p.getTeamSize());
-            ps.setDate(8, p.getStartDate());
-            ps.setDate(9, p.getEndDate());
-            ps.setString(10, p.getProjectUrl());
-            ps.setString(11, p.getGithubUrl());
-            int rows = ps.executeUpdate();
-            if (rows > 0) {
-                try (ResultSet keys = ps.getGeneratedKeys()) {
-                    if (keys.next()) {
-                        p.setProjectId(keys.getInt(1));
-                    }
-                }
-                return true;
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
+        if (p == null || p.getUserId() <= 0) return false;
+        String desc = p.getDescription() != null ? p.getDescription() : "";
+        if (p.getTechnologiesUsed() != null && !p.getTechnologiesUsed().trim().isEmpty()) {
+            desc = desc + " [Tech: " + p.getTechnologiesUsed() + "]";
         }
-        return false;
+        if (p.getProjectUrl() != null && !p.getProjectUrl().trim().isEmpty()) {
+            desc = desc + " [URL: " + p.getProjectUrl() + "]";
+        }
+        return studentDAO.updateProjects(p.getUserId(), p.getProjectName(), desc);
     }
 
     public boolean updateProject(Project p) {
-        String sql = "UPDATE projects SET project_name = ?, description = ?, technologies_used = ?, role = ?, project_type = ?, team_size = ?, start_date = ?, end_date = ?, project_url = ?, github_url = ?, updated_at = NOW() " +
-                     "WHERE project_id = ? AND user_id = ?";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, p.getProjectName());
-            ps.setString(2, p.getDescription());
-            ps.setString(3, p.getTechnologiesUsed());
-            ps.setString(4, p.getRole());
-            ps.setString(5, p.getProjectType());
-            ps.setInt(6, p.getTeamSize());
-            ps.setDate(7, p.getStartDate());
-            ps.setDate(8, p.getEndDate());
-            ps.setString(9, p.getProjectUrl());
-            ps.setString(10, p.getGithubUrl());
-            ps.setInt(11, p.getProjectId());
-            ps.setInt(12, p.getUserId());
-            return ps.executeUpdate() > 0;
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
+        return addProject(p);
     }
 
     public boolean deleteProject(int projectId, int userId) {
-        String sql = "DELETE FROM projects WHERE project_id = ? AND user_id = ?";
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, projectId);
-            ps.setInt(2, userId);
-            return ps.executeUpdate() > 0;
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-
-    private Project mapRow(ResultSet rs) throws SQLException {
-        Project p = new Project();
-        p.setProjectId(rs.getInt("project_id"));
-        p.setUserId(rs.getInt("user_id"));
-        p.setProjectName(rs.getString("project_name"));
-        p.setDescription(rs.getString("description"));
-        p.setTechnologiesUsed(rs.getString("technologies_used"));
-        p.setRole(rs.getString("role"));
-        p.setProjectType(rs.getString("project_type"));
-        p.setTeamSize(rs.getInt("team_size"));
-        p.setStartDate(rs.getDate("start_date"));
-        p.setEndDate(rs.getDate("end_date"));
-        p.setProjectUrl(rs.getString("project_url"));
-        p.setGithubUrl(rs.getString("github_url"));
-        p.setCreatedAt(rs.getTimestamp("created_at"));
-        p.setUpdatedAt(rs.getTimestamp("updated_at"));
-        return p;
+        return studentDAO.updateProjects(userId, null, null);
     }
 }
