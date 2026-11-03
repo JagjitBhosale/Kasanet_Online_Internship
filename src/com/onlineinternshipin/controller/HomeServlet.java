@@ -1,6 +1,9 @@
 package com.onlineinternshipin.controller;
 
 import java.io.IOException;
+import java.sql.SQLException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -16,6 +19,7 @@ import com.onlineinternshipin.model.User;
 import com.onlineinternshipin.utility.SessionUtil;
 public class HomeServlet extends HttpServlet {
 
+    private static final Logger LOGGER = Logger.getLogger(HomeServlet.class.getName());
     private final HomeDAO homeDAO = new HomeDAO();
     private final ProfileDAO profileDAO = new ProfileDAO();
     private final UserDAO userDAO = new UserDAO();
@@ -46,7 +50,16 @@ public class HomeServlet extends HttpServlet {
         int completion = profileDAO.calculateProfileCompletion(userId);
         profileDAO.updateProfileCompletion(userId, completion);
 
-        HomeStats stats = homeDAO.gethomeStats(userId);
+        HomeStats stats;
+        try {
+            stats = homeDAO.gethomeStats(userId);
+        } catch (SQLException exception) {
+            LOGGER.log(Level.SEVERE, "Unable to load student dashboard assignment statistics for studentId="
+                    + userId, exception);
+            throw new ServletException("Unable to load student dashboard statistics.", exception);
+        }
+        stats.setStudentName(user.getFullName());
+        stats.setProfileCompletion(completion);
         StudentProfile profile = profileDAO.getProfileByUserId(userId);
 
         if (profile == null) {

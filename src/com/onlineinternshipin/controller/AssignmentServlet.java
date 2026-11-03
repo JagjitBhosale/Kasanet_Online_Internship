@@ -45,7 +45,12 @@ public class AssignmentServlet extends HttpServlet {
 
         List<Assignment> assignments;
         try {
-            assignments = assignmentDAO.getActiveAssignments();
+            Integer userId = SessionUtil.getUserId(req);
+            if (userId == null) {
+                resp.sendRedirect(req.getContextPath() + "/login");
+                return;
+            }
+            assignments = assignmentDAO.getAssignmentsForStudent(userId);
         } catch (SQLException exception) {
             LOGGER.log(Level.SEVERE, "Unable to load student assignments.", exception);
             assignments = Collections.emptyList();
@@ -58,10 +63,14 @@ public class AssignmentServlet extends HttpServlet {
 
     private void showAssignmentDetails(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
-        int assignmentId;
+        int studentAssignmentId;
         try {
-            assignmentId = Integer.parseInt(req.getParameter("assignmentId"));
-            if (assignmentId <= 0) {
+            String id = req.getParameter("studentAssignmentId");
+            if (id == null) {
+                id = req.getParameter("assignmentId");
+            }
+            studentAssignmentId = Integer.parseInt(id);
+            if (studentAssignmentId <= 0) {
                 throw new NumberFormatException();
             }
         } catch (NumberFormatException exception) {
@@ -70,15 +79,22 @@ public class AssignmentServlet extends HttpServlet {
         }
 
         try {
-            Assignment assignment = assignmentDAO.getAssignmentById(assignmentId);
-            if (assignment == null || !assignment.isActive()) {
+            Integer userId = SessionUtil.getUserId(req);
+            if (userId == null) {
+                resp.sendRedirect(req.getContextPath() + "/login");
+                return;
+            }
+            Assignment assignment = assignmentDAO.getAssignmentForStudent(studentAssignmentId, userId);
+            if (assignment == null) {
                 resp.sendError(HttpServletResponse.SC_NOT_FOUND);
                 return;
             }
             req.setAttribute("assignment", assignment);
+            req.setAttribute("csrfToken", SessionUtil.getOrCreateCsrfToken(req));
             req.getRequestDispatcher("/views/assignment-detail.jsp").forward(req, resp);
         } catch (SQLException exception) {
-            LOGGER.log(Level.SEVERE, "Unable to load assignment details for assignmentId=" + assignmentId,
+            LOGGER.log(Level.SEVERE,
+                    "Unable to load student assignment details for studentAssignmentId=" + studentAssignmentId,
                     exception);
             resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
@@ -86,8 +102,83 @@ public class AssignmentServlet extends HttpServlet {
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        resp.setHeader("Allow", "GET");
-        resp.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+        if (!SessionUtil.requireLogin(req, resp)) {
+            return;
+        }
+        if (!SessionUtil.isStudent(req)) {
+            if (SessionUtil.isAdmin(req)) {
+                resp.sendRedirect(req.getContextPath() + "/admin/assignments");
+                return;
+            }
+            resp.sendError(HttpServletResponse.SC_FORBIDDEN);
+            return;
+        }
+
+        if (!SessionUtil.isValidCsrfToken(req, req.getParameter("csrfToken"))) {
+            resp.sendError(HttpServletResponse.SC_FORBIDDEN, "Invalid security token.");
+            return;
+        }
+
+        Integer studentId = SessionUtil.getUserId(req);
+        if (studentId == null) {
+            resp.sendRedirect(req.getContextPath() + "/login");
+            return;
+        }
+
+        int studentAssignmentId;
+        try {
+            String id = req.getParameter("studentAssignmentId");
+            if (id == null) {
+                id = req.getParameter("assignmentId");
+            }
+            studentAssignmentId = Integer.parseInt(id);
+            if (studentAssignmentId <= 0) {
+                throw new NumberFormatException();
+            }
+        } catch (NumberFormatException exception) {
+            resp.sendError(HttpServletResponse.SC_BAD_REQUEST);
+            return;
+        }
+
+        String action = req.getParameter("action");
+        String expectedStatus;
+        String newStatus;
+        if ("complete".equals(action)) {
+            expectedStatus = "Assigned";
+            newStatus = "Completed";
+        } else if ("undo-completion".equals(action)) {
+            expectedStatus = "Completed";
+            newStatus = "Assigned";
+        } else {
+            resp.sendError(HttpServletResponse.SC_BAD_REQUEST);
+            return;
+        }
+
+        try {
+            boolean updated = assignmentDAO.updateStudentAssignmentStatus(
+                    studentAssignmentId, studentId, expectedStatus, newStatus);
+            if (!updated) {
+                Assignment current = assignmentDAO.getAssignmentForStudent(studentAssignmentId, studentId);
+                if (current == null) {
+                    resp.sendError(HttpServletResponse.SC_NOT_FOUND);
+                    return;
+                }
+                if (!newStatus.equals(current.getStatus())) {
+                    resp.sendError(HttpServletResponse.SC_CONFLICT,
+                            "The assignment status has changed. Reload the assignment and try again.");
+                    return;
+                }
+            }
+            resp.sendRedirect(req.getContextPath() + "/assignment-details?studentAssignmentId="
+                    + studentAssignmentId + "&updated="
+                    + ("Completed".equals(newStatus) ? "completed" : "undone"));
+        } catch (SQLException exception) {
+            LOGGER.log(Level.SEVERE,
+                    "Unable to update assignment completion for studentAssignmentId="
+                            + studentAssignmentId + ", studentId=" + studentId,
+                    exception);
+            resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        }
     }
 
     private String getRoleCategory(HttpServletRequest request) {

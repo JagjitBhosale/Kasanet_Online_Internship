@@ -196,6 +196,12 @@ Student (extends User)
 
 ## 5. Schema Extensions & Migrations
 
+### Dashboard data sources
+- Student identity, profile, education, skills, portfolio projects, certifications, and achievements are read from the production `student` row and its existing columns.
+- Student assignments are read from `student_assignment_data` using `student_id`; detail reads are scoped by both `student_assignment_id` and the signed-in student's `student.id`.
+- Project reports reuse `student.Projectname`, `student.projectdetails`, and the existing project-planning and knowledge columns (`pdomain` through `knowledge_postimpl`). The schema supports one current report per student; no duplicate project-report table is required.
+- Platform exam results require exam name, numeric score, and achievement date, none of which are available in the legacy `certificate` table (it stores certificate PDF bytes). Apply `V003__create_platform_certificates.sql`; its `user_id` foreign key targets production `student.id`.
+
 ### Migration `V001__add_student_indexes.sql`
 - **File**: `Database/migrations/V001__add_student_indexes.sql`
 - **Reason**: The base `onlineinternship.sql` defines only `PRIMARY KEY (id)` on table `student`. Secondary indexes on `email` and `phone` are essential to eliminate full-table scans during login and registration uniqueness checks.

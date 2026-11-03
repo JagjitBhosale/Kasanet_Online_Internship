@@ -45,6 +45,8 @@
         .sidebar-hidden .layout { grid-template-columns: minmax(0, 1fr); }
         .sidebar-hidden .sidebar { transform: translateX(-100%); pointer-events: none; }
         .sidebar-hidden .content { grid-column: 1; width: 100%; max-width: 1180px; justify-self: center; }
+        .layout { margin-top: 0; }
+        .sidebar { top: 64px; }
         h1 { margin: 0 0 8px; color: #172554; font-size: 28px; }
         h2 { margin: 0 0 18px; font-size: 21px; }
         h3 { margin: 26px 0 14px; padding-bottom: 10px; border-bottom: 1px solid #dce5f3; color: #1e3a8a; font-size: 19px; }
@@ -127,40 +129,19 @@
             .layout { padding: 12px; }
         }
     </style>
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/assets/css/student-portal.css">
 </head>
 <body>
-    <header class="navbar">
-        <div class="navbar-branding">
-            <button class="menu-toggle" id="sidebarToggle" type="button" aria-label="Hide dashboard sidebar" aria-controls="dashboardSidebar" aria-expanded="true">
-                <span></span><span></span><span></span>
-            </button>
-            <a href="${pageContext.request.contextPath}/home" class="navbar-brand">
-            <img src="${pageContext.request.contextPath}/assets/images/logo.png" alt="My Internship Technologies Logo" style="height: 32px; width: auto; object-fit: contain; margin-right: 10px; border-radius: 4px; background: #ffffff; padding: 2px;" />
-            <span>My Internship Technologies</span>
-            </a>
-        </div>
-        <nav class="navbar-menu" aria-label="Main navigation">
-            <a href="${pageContext.request.contextPath}/home" class="nav-link">Home</a>
-            <a href="${pageContext.request.contextPath}/dashboard" class="nav-link active" aria-current="page">My Dashboard</a>
-            <a href="${pageContext.request.contextPath}/profile" class="nav-link">Profile</a>
-            <a href="${pageContext.request.contextPath}/assignments" class="nav-link">Assignments</a>
-            <a href="${pageContext.request.contextPath}/courses" class="nav-link">Video Courses</a>
-            <a href="${pageContext.request.contextPath}/lectures" class="nav-link">Lectures</a>
-            <a href="${pageContext.request.contextPath}/certifications" class="nav-link">Certifications</a>
-            <a href="${pageContext.request.contextPath}/question-bank" class="nav-link">Question Bank</a>
-            <a href="${pageContext.request.contextPath}/resume-analysis" class="nav-link">Resume Analysis</a>
-            <span style="font-size: 0.88rem; color: #cbd5e0; margin-left: 6px; white-space: nowrap;">Hi, <c:out value="${not empty sessionScope.userFirstName ? sessionScope.userFirstName : (not empty sessionScope.user.firstName ? sessionScope.user.firstName : (not empty user.firstName ? user.firstName : 'Student'))}"/></span>
-            <a href="${pageContext.request.contextPath}/logout" class="btn-logout">Logout</a>
-        </nav>
-    </header>
+    <jsp:include page="/views/student-navigation.jsp">
+        <jsp:param name="active" value="dashboard"/>
+        <jsp:param name="dashboardSidebar" value="true"/>
+    </jsp:include>
 
     <div class="layout">
         <aside class="sidebar" id="dashboardSidebar" aria-label="Dashboard sections">
             <h2 class="sidebar-title">My Dashboard</h2>
             <a href="${pageContext.request.contextPath}/dashboard?section=student-profile" class="section-link ${selectedSection eq 'student-profile' ? 'active' : ''}" aria-current="${selectedSection eq 'student-profile' ? 'page' : 'false'}">Student Profile</a>
             <a href="${pageContext.request.contextPath}/dashboard?section=assignment" class="section-link ${selectedSection eq 'assignment' ? 'active' : ''}" aria-current="${selectedSection eq 'assignment' ? 'page' : 'false'}">Assignment Details</a>
-            <a href="${pageContext.request.contextPath}/courses" class="section-link">Video Courses</a>
-            <a href="${pageContext.request.contextPath}/lectures" class="section-link">Lectures</a>
             <a href="${pageContext.request.contextPath}/dashboard?section=projects" class="section-link ${selectedSection eq 'projects' ? 'active' : ''}" aria-current="${selectedSection eq 'projects' ? 'page' : 'false'}">Project</a>
             <a href="${pageContext.request.contextPath}/dashboard?section=certificates" class="section-link ${selectedSection eq 'certificates' ? 'active' : ''}" aria-current="${selectedSection eq 'certificates' ? 'page' : 'false'}">Global Certification</a>
             <a href="${pageContext.request.contextPath}/dashboard?section=report-details" class="section-link ${selectedSection eq 'report-details' ? 'active' : ''}" aria-current="${selectedSection eq 'report-details' ? 'page' : 'false'}">Report</a>
@@ -185,10 +166,10 @@
                     <div class="summary-item"><span class="summary-label">Name</span><div class="summary-value"><c:out value="${user.fullName}" default="Not provided"/></div></div>
                     <div class="summary-item"><span class="summary-label">Email</span><div class="summary-value"><c:out value="${user.email}" default="Not provided"/></div></div>
                     <div class="summary-item"><span class="summary-label">Mobile</span><div class="summary-value"><c:out value="${user.mobile}" default="Not provided"/></div></div>
+                    <div class="summary-item"><span class="summary-label">Profile Completion</span><div class="summary-value"><c:out value="${profileCompletion}"/>%</div></div>
                     <div class="summary-item"><span class="summary-label">Gender</span><div class="summary-value"><c:out value="${profile.gender}" default="Not provided"/></div></div>
                     <div class="summary-item"><span class="summary-label">Date of Birth</span><div class="summary-value"><c:out value="${profile.dateOfBirth}" default="Not provided"/></div></div>
-                    <div class="summary-item"><span class="summary-label">Branch</span><div class="summary-value"><c:out value="${user.branch}" default="Not provided"/></div></div>
-                    <div class="summary-item"><span class="summary-label">Stream</span><div class="summary-value"><c:out value="${user.stream}" default="Not provided"/></div></div>
+                    <div class="summary-item"><span class="summary-label">Stream / Field of Study</span><div class="summary-value"><c:out value="${user.stream}" default="Not provided"/></div></div>
                     <div class="summary-item"><span class="summary-label">College Name</span><div class="summary-value"><c:out value="${user.collegeName}" default="Not provided"/></div></div>
                     <div class="summary-item"><span class="summary-label">Address</span><div class="summary-value"><c:out value="${profile.address}" default="Not provided"/></div></div>
                     <div class="summary-item"><span class="summary-label">City</span><div class="summary-value"><c:out value="${user.city}" default="Not provided"/></div></div>
@@ -323,7 +304,11 @@
             <c:if test="${selectedSection eq 'assignment'}">
             <section class="panel">
                 <h2>Assignment Details</h2>
-                <p class="intro">Review your active internship assignments, descriptions, instructions, and due dates.</p>
+                <p class="intro">Review assignments assigned specifically to your account.</p>
+                <p class="intro">Assigned: <strong><c:out value="${assignedAssignmentCount}"/></strong>
+                    &middot; Completed: <strong><c:out value="${completedAssignmentCount}"/></strong>
+                    &middot; Pending: <strong><c:out value="${pendingAssignmentCount}"/></strong>
+                    &middot; Completion: <strong><c:out value="${assignmentCompletionPercent}"/>%</strong></p>
                 <c:choose>
                     <c:when test="${not empty assignmentList}">
                         <div class="record-list">
@@ -331,15 +316,15 @@
                                 <article class="record">
                                     <strong><c:out value="${assignment.title}"/></strong>
                                     <p><c:if test="${not empty assignment.subject}"><c:out value="${assignment.subject}"/> · </c:if><c:out value="${assignment.description}"/></p>
-                                    <p><c:if test="${not empty assignment.dueDate}">Due: <c:out value="${assignment.dueDate}"/> · </c:if><c:if test="${assignment.totalMarks > 0}">Total marks: <c:out value="${assignment.totalMarks}"/></c:if></p>
-                                    <a class="button assignment-view-button" href="${pageContext.request.contextPath}/assignment-details?assignmentId=${assignment.assignmentId}">
+                                    <p><c:if test="${not empty assignment.status}">Status: <c:out value="${assignment.status}"/> · </c:if><c:if test="${not empty assignment.createdAt}">Assigned: <fmt:formatDate value="${assignment.createdAt}" pattern="dd MMM yyyy"/></c:if></p>
+                                    <a class="button assignment-view-button" href="${pageContext.request.contextPath}/assignment-details?studentAssignmentId=${assignment.studentAssignmentId}">
                                         View full assignment and instructions <span aria-hidden="true">&rarr;</span>
                                     </a>
                                 </article>
                             </c:forEach>
                         </div>
                     </c:when>
-                    <c:otherwise><p class="empty">No active assignments are available.</p></c:otherwise>
+                    <c:otherwise><p class="empty">No assignments have been assigned to you yet.</p></c:otherwise>
                 </c:choose>
             </section>
             </c:if>
@@ -517,6 +502,8 @@
             <c:if test="${selectedSection eq 'certificates'}">
             <section class="panel">
                 <h2>Global Certification</h2>
+                <c:choose>
+                    <c:when test="${platformCertificateStorageAvailable}">
                 <p class="intro">Record your global certification exam results.</p>
                 <c:if test="${param.success eq 'certificate-added'}"><p role="status" style="color:#166534;">Certificate exam result added.</p></c:if>
                 <c:if test="${param.success eq 'certificate-deleted'}"><p role="status" style="color:#166534;">Certificate exam result deleted.</p></c:if>
@@ -560,7 +547,7 @@
                             <c:forEach var="certificate" items="${platformCertificateList}">
                                 <article class="record">
                                     <strong><c:out value="${certificate.examName}"/></strong>
-                                    <p>Score: <fmt:formatNumber value="${certificate.scoreObtained}" minFractionDigits="0" maxFractionDigits="2" groupingUsed="false"/>/1000</p>
+                                    <p>Score: <fmt:formatNumber value="${certificate.scoreObtained}" minFractionDigits="0" maxFractionDigits="2" groupingUsed="false"/>/<fmt:formatNumber value="${certificate.totalScore}" minFractionDigits="0" maxFractionDigits="2" groupingUsed="false"/></p>
                                     <p>Date achieved: <c:out value="${certificate.achievementDate}"/></p>
                                     <form action="${pageContext.request.contextPath}/platform-certificates" method="post" style="margin-top:8px;">
                                         <input type="hidden" name="action" value="delete">
@@ -572,6 +559,13 @@
                         </div>
                     </c:when>
                     <c:otherwise><p class="empty">No global certification results have been added yet.</p></c:otherwise>
+                </c:choose>
+                    </c:when>
+                    <c:otherwise>
+                        <p role="status" class="empty">Global certification results are unavailable because the optional
+                            <code>platform_certificates</code> table is not installed. Apply
+                            <code>Database/migrations/V003__create_platform_certificates.sql</code> to enable this feature.</p>
+                    </c:otherwise>
                 </c:choose>
             </section>
             </c:if>

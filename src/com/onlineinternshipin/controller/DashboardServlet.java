@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -105,16 +106,26 @@ public class DashboardServlet extends HttpServlet {
         }
 
         StudentProfile profile = profileDAO.getProfileByUserId(userId);
-        List<Education> educationList = educationDAO.getEducationByUserId(userId);
+        List<Education> educationList = getPopulatedEducationRecords(
+                educationDAO.getEducationByUserId(userId));
         List<Skill> skillList = skillDAO.getSkillsByUserId(userId);
         Map<String, List<Skill>> skillsByType = groupSkillsByType(skillList);
         List<Project> projectList = projectDAO.getProjectsByUserId(userId);
         List<Certification> certificationList = certificationDAO.getCertificationsByUserId(userId);
         List<PlatformCertificate> platformCertificateList;
+        boolean platformCertificateStorageAvailable = true;
         try {
             platformCertificateList = platformCertificateDAO.getByUserId(userId);
         } catch (SQLException e) {
-            throw new ServletException("Unable to load platform certificates.", e);
+            if (!isMissingPlatformCertificateTable(e)) {
+                throw new ServletException("Unable to load platform certificates.", e);
+            }
+            LOGGER.log(Level.WARNING,
+                    "Platform certificates are unavailable because platform_certificates is missing. "
+                            + "Apply Database/migrations/V003__create_platform_certificates.sql to enable them.",
+                    e);
+            platformCertificateList = Collections.emptyList();
+            platformCertificateStorageAvailable = false;
         }
         List<PlatformProjectReport> platformProjectReportList;
         try {
@@ -127,7 +138,7 @@ public class DashboardServlet extends HttpServlet {
         List<Competition> competitionList = competitionDAO.getCompetitionsByUserId(userId);
         List<Assignment> assignmentList;
         try {
-            assignmentList = assignmentDAO.getActiveAssignments();
+            assignmentList = assignmentDAO.getAssignmentsForStudent(userId);
         } catch (SQLException exception) {
             LOGGER.log(Level.SEVERE, "Unable to load dashboard assignments for userId=" + userId, exception);
             resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
@@ -143,7 +154,7 @@ public class DashboardServlet extends HttpServlet {
             String format = req.getParameter("format");
             List<String[]> reportRows = createReportRows(user, profile, educationList, skillList, projectList,
                     certificationList, platformCertificateList, platformProjectReportList, achievementList,
-                    hackathonList, competitionList, assignmentList, user.getBranch(), profileCompletion);
+                    hackathonList, competitionList, assignmentList, profileCompletion);
             if ("pdf".equalsIgnoreCase(format)) {
                 writePdfReport(resp, reportRows);
             } else if ("word".equalsIgnoreCase(format)) {
@@ -178,11 +189,56 @@ public class DashboardServlet extends HttpServlet {
         req.setAttribute("hackathonList", hackathonList);
         req.setAttribute("competitionList", competitionList);
         req.setAttribute("assignmentList", assignmentList);
+        req.setAttribute("assignedAssignmentCount", assignmentList.size());
+        int completedAssignmentCount = countCompletedAssignments(assignmentList);
+        req.setAttribute("completedAssignmentCount", completedAssignmentCount);
+        req.setAttribute("pendingAssignmentCount", assignmentList.size() - completedAssignmentCount);
+        req.setAttribute("assignmentCompletionPercent", assignmentList.isEmpty()
+                ? 0 : (int) Math.round(completedAssignmentCount * 100.0 / assignmentList.size()));
         req.setAttribute("profileCompletion", profileCompletion);
+        req.setAttribute("platformCertificateStorageAvailable", platformCertificateStorageAvailable);
         req.setAttribute("activeSection", activeSection);
         req.getRequestDispatcher(
                 "/views/dashboard.jsp"
         ).forward(req, resp);
+    }
+
+    private boolean isMissingPlatformCertificateTable(SQLException exception) {
+        for (SQLException current = exception; current != null; current = current.getNextException()) {
+            if (current.getErrorCode() == 1146 || "42S02".equals(current.getSQLState())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private List<Education> getPopulatedEducationRecords(List<Education> educationRecords) {
+        List<Education> populatedRecords = new ArrayList<>();
+        for (Education education : educationRecords) {
+            if (education != null && (hasText(education.getSchoolCollegeName())
+                    || hasText(education.getBoardUniversity())
+                    || hasText(education.getStream())
+                    || education.getPassingYear() > 0
+                    || education.getPercentage() > 0)) {
+                populatedRecords.add(education);
+            }
+        }
+        return populatedRecords;
+    }
+
+    private int countCompletedAssignments(List<Assignment> assignments) {
+        int completedCount = 0;
+        for (Assignment assignment : assignments) {
+            if (assignment.getStatus() != null
+                    && "Completed".equalsIgnoreCase(assignment.getStatus().trim())) {
+                completedCount++;
+            }
+        }
+        return completedCount;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 
     private boolean isDashboardSection(String section) {
@@ -200,7 +256,7 @@ public class DashboardServlet extends HttpServlet {
                                             List<PlatformProjectReport> platformProjectReportList,
                                             List<Achievement> achievementList, List<Hackathon> hackathonList,
                                             List<Competition> competitionList, List<Assignment> assignmentList,
-                                            String branch, int profileCompletion) {
+                                            int profileCompletion) {
         List<String[]> rows = new ArrayList<>();
         rows.add(new String[]{"Section", "Record", "Details"});
         rows.add(new String[]{"Student Profile", "Name", user.getFullName()});
@@ -209,7 +265,6 @@ public class DashboardServlet extends HttpServlet {
         rows.add(new String[]{"Student Profile", "Gender", profile == null ? "" : profile.getGender()});
         rows.add(new String[]{"Student Profile", "Date of Birth",
                 profile == null || profile.getDateOfBirth() == null ? "" : profile.getDateOfBirth().toString()});
-        rows.add(new String[]{"Student Profile", "Branch", branch});
         rows.add(new String[]{"Student Profile", "Stream", user.getStream()});
         rows.add(new String[]{"Student Profile", "College Name", user.getCollegeName()});
         rows.add(new String[]{"Student Profile", "Address", profile == null ? "" : profile.getAddress()});
@@ -240,8 +295,9 @@ public class DashboardServlet extends HttpServlet {
             rows.add(new String[]{"Assignments", assignment.getTitle(), joinValues(
                     labelledValue("Subject", assignment.getSubject()),
                     labelledValue("Description", assignment.getDescription()),
-                    assignment.getDueDate() == null ? "" : "Due date: " + assignment.getDueDate(),
-                    assignment.getTotalMarks() == 0 ? "" : "Maximum marks: " + assignment.getTotalMarks())});
+                    labelledValue("Status", assignment.getStatus()),
+                    labelledValue("Result", assignment.getRemarks()),
+                    assignment.getCreatedAt() == null ? "" : "Assigned: " + assignment.getCreatedAt())});
         }
         for (Project project : projectList) {
             rows.add(new String[]{"Projects", "Portfolio: " + project.getProjectName(), joinValues(
@@ -280,7 +336,8 @@ public class DashboardServlet extends HttpServlet {
         }
         for (PlatformCertificate certificate : platformCertificateList) {
             rows.add(new String[]{"Global Certification", certificate.getExamName(), joinValues(
-                    "Score: " + certificate.getScoreObtained().stripTrailingZeros().toPlainString() + "/1000",
+                    "Score: " + certificate.getScoreObtained().stripTrailingZeros().toPlainString()
+                            + "/" + certificate.getTotalScore().stripTrailingZeros().toPlainString(),
                     "Achievement date: " + certificate.getAchievementDate())});
         }
         for (Certification certification : certificationList) {

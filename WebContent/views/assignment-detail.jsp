@@ -91,6 +91,12 @@
         .pdf-link { display: inline-flex; align-items: center; gap: 8px; padding: 9px 13px; border: 1px solid #d5e1fa; border-radius: 8px; color: #24449c; background: #f6f8ff; font-weight: 700; text-decoration: none; }
         .pdf-link:hover { background: #edf3ff; }
         .pdf-viewer { display: block; width: 100%; height: min(70vh, 720px); min-height: 420px; border: 1px solid #dce5f3; border-radius: 12px; background: #f8faff; }
+        .completion-message { padding: 12px 14px; border: 1px solid #bbf7d0; border-radius: 9px; color: #166534; background: #f0fdf4; }
+        .completion-form { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+        .completion-form button { min-height: 42px; padding: 10px 16px; border: 0; border-radius: 8px; color: #fff; background: #1d4ed8; font: inherit; font-weight: 700; cursor: pointer; }
+        .completion-form button:hover { background: #1e40af; }
+        .completion-form .undo-button { border: 1px solid #cbd5e1; color: #1e3a8a; background: #fff; }
+        .completion-form .undo-button:hover { background: #f1f5f9; }
         @media (max-width: 600px) {
             .navbar { padding: 12px 18px; }
             .brand { font-size: 1rem; }
@@ -99,27 +105,12 @@
             .pdf-viewer { height: 58vh; min-height: 340px; }
         }
     </style>
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/assets/css/student-portal.css">
 </head>
 <body>
-<nav class="navbar">
-    <a href="${pageContext.request.contextPath}/home" class="brand">
-        <img src="${pageContext.request.contextPath}/assets/images/logo.png" alt="My Internship Technologies Logo">
-        <span>My Internship Technologies</span>
-    </a>
-    <div class="navbar-menu">
-        <a href="${pageContext.request.contextPath}/home" class="nav-link">Home</a>
-        <a href="${pageContext.request.contextPath}/dashboard" class="nav-link">My Dashboard</a>
-        <a href="${pageContext.request.contextPath}/profile" class="nav-link">Profile</a>
-        <a href="${pageContext.request.contextPath}/assignments" class="nav-link active">Assignments</a>
-        <a href="${pageContext.request.contextPath}/courses" class="nav-link">Video Courses</a>
-        <a href="${pageContext.request.contextPath}/lectures" class="nav-link">Lectures</a>
-        <a href="${pageContext.request.contextPath}/certifications" class="nav-link">Certifications</a>
-        <a href="${pageContext.request.contextPath}/question-bank" class="nav-link">Question Bank</a>
-        <a href="${pageContext.request.contextPath}/resume-analysis" class="nav-link">Resume Analysis</a>
-        <span style="font-size: 0.88rem; color: #cbd5e0; margin-left: 6px; white-space: nowrap;">Hi, <c:out value="${not empty sessionScope.userFirstName ? sessionScope.userFirstName : (not empty sessionScope.user.firstName ? sessionScope.user.firstName : (not empty user.firstName ? user.firstName : 'Student'))}"/></span>
-        <a href="${pageContext.request.contextPath}/logout" class="btn-logout">Logout</a>
-    </div>
-</nav>
+<jsp:include page="/views/student-navigation.jsp">
+    <jsp:param name="active" value="assignments"/>
+</jsp:include>
 <main class="container">
     <a class="back-link" href="${pageContext.request.contextPath}/assignments"><span aria-hidden="true">&larr;</span> Back to assignments</a>
     <article class="panel">
@@ -130,15 +121,52 @@
             <div class="meta" aria-label="Assignment details">
                 <div class="meta-item">
                     <span class="meta-icon" aria-hidden="true">&#128197;</span>
-                    <span><span class="meta-label">Due date</span><span class="meta-value"><fmt:formatDate value="${assignment.dueDate}" pattern="dd MMM yyyy"/></span></span>
+                    <span><span class="meta-label">Assigned</span><span class="meta-value"><fmt:formatDate value="${assignment.createdAt}" pattern="dd MMM yyyy"/></span></span>
                 </div>
                 <div class="meta-item">
                     <span class="meta-icon" aria-hidden="true">&#9733;</span>
-                    <span><span class="meta-label">Maximum marks</span><span class="meta-value"><c:out value="${assignment.totalMarks}"/> marks</span></span>
+                    <span><span class="meta-label">Status</span><span class="meta-value"><c:out value="${assignment.status}"/></span></span>
                 </div>
+                <div class="meta-item">
+                    <span class="meta-icon" aria-hidden="true">&#9200;</span>
+                    <span><span class="meta-label">Due date</span><span class="meta-value"><fmt:formatDate value="${assignment.dueDate}" pattern="dd MMM yyyy"/></span></span>
+                </div>
+                <c:if test="${assignment.totalMarks gt 0}">
+                    <div class="meta-item">
+                        <span class="meta-icon" aria-hidden="true">&#9734;</span>
+                        <span><span class="meta-label">Maximum marks</span><span class="meta-value"><c:out value="${assignment.totalMarks}"/></span></span>
+                    </div>
+                </c:if>
             </div>
         </header>
         <div class="panel-body">
+            <c:if test="${param.updated eq 'completed'}">
+                <p class="completion-message" role="status">Assignment marked as completed.</p>
+            </c:if>
+            <c:if test="${param.updated eq 'undone'}">
+                <p class="completion-message" role="status">Completion undone. The assignment is assigned again.</p>
+            </c:if>
+            <c:if test="${assignment.status eq 'Assigned' or assignment.status eq 'Completed'}">
+                <section class="section">
+                    <h2 class="section-heading">Completion</h2>
+                    <div class="completion-form">
+                        <form method="post" action="${pageContext.request.contextPath}/assignment-details">
+                            <input type="hidden" name="csrfToken" value="<c:out value='${csrfToken}'/>">
+                            <input type="hidden" name="studentAssignmentId" value="<c:out value='${assignment.studentAssignmentId}'/>">
+                            <c:choose>
+                                <c:when test="${assignment.status eq 'Assigned'}">
+                                    <input type="hidden" name="action" value="complete">
+                                    <button type="submit">Mark as Completed</button>
+                                </c:when>
+                                <c:otherwise>
+                                    <input type="hidden" name="action" value="undo-completion">
+                                    <button class="undo-button" type="submit">Undo Completion</button>
+                                </c:otherwise>
+                            </c:choose>
+                        </form>
+                    </div>
+                </section>
+            </c:if>
             <section class="section">
                 <h2 class="section-heading">Assignment description</h2>
                 <div class="content"><c:out value="${assignment.description}"/></div>
@@ -157,11 +185,11 @@
                     <div class="pdf-actions">
                         <span>Review the attached PDF below, or open it in a separate tab.</span>
                         <a class="pdf-link"
-                           href="${pageContext.request.contextPath}/assignment-instructions?assignmentId=${assignment.assignmentId}"
+                           href="${pageContext.request.contextPath}/assignment-instructions?studentAssignmentId=${assignment.studentAssignmentId}"
                            target="_blank" rel="noopener">Open PDF in new tab &#8599;</a>
                     </div>
                     <iframe class="pdf-viewer"
-                            src="${pageContext.request.contextPath}/assignment-instructions?assignmentId=${assignment.assignmentId}#toolbar=0&navpanes=0"
+                            src="${pageContext.request.contextPath}/assignment-instructions?studentAssignmentId=${assignment.studentAssignmentId}#toolbar=0&navpanes=0"
                             title="Assignment instructions PDF"></iframe>
                 </section>
             </c:if>

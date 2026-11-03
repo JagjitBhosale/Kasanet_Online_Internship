@@ -9,12 +9,13 @@ import java.sql.SQLException;
  *
  * Provides a centralized, thread-safe mechanism to obtain JDBC connections
  * to the MySQL database for the Kasnet Online Internship Portal.
- * Supports local development (.env, properties) and CloudJiffy production (Environment Variables).
+ * Supports local development (.env, properties) and CloudJiffy production
+ * (Environment Variables).
  *
  * Usage (try-with-resources recommended):
- *   try (Connection conn = DBConnection.getConnection()) {
- *       // use connection
- *   }
+ * try (Connection conn = DBConnection.getConnection()) {
+ * // use connection
+ * }
  */
 public class DBConnection {
 
@@ -22,8 +23,7 @@ public class DBConnection {
     // DATABASE CONFIGURATION — Dynamically loaded with production env var priority
     // -------------------------------------------------------------------------
 
-    private static final String DEFAULT_DB_URL =
-            "jdbc:mysql://localhost:3306/onlineinternship"
+    private static final String DEFAULT_DB_URL = "jdbc:mysql://localhost:3306/onlineinternship"
             + "?useSSL=false&serverTimezone=Asia/Kolkata&allowPublicKeyRetrieval=true";
     private static final String DEFAULT_DB_USER = "root";
     private static final String DEFAULT_DB_PASSWORD = "";
@@ -37,13 +37,16 @@ public class DBConnection {
             if (in != null) {
                 DB_PROPS.load(in);
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         if (DB_PROPS.isEmpty()) {
-            try (java.io.InputStream in = DBConnection.class.getClassLoader().getResourceAsStream("database1.properties")) {
+            try (java.io.InputStream in = DBConnection.class.getClassLoader()
+                    .getResourceAsStream("database1.properties")) {
                 if (in != null) {
                     DB_PROPS.load(in);
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
     }
 
@@ -63,7 +66,8 @@ public class DBConnection {
         }
         // 2. Local properties file fallback
         String propUrl = DB_PROPS.getProperty("db.url", DB_PROPS.getProperty("url"));
-        if (propUrl != null && !propUrl.trim().isEmpty()) return propUrl.trim();
+        if (propUrl != null && !propUrl.trim().isEmpty())
+            return propUrl.trim();
         return DEFAULT_DB_URL;
     }
 
@@ -74,8 +78,10 @@ public class DBConnection {
             return envUser.trim();
         }
         // 2. Local properties file fallback
-        String propUser = DB_PROPS.getProperty("db.user", DB_PROPS.getProperty("user", DB_PROPS.getProperty("username")));
-        if (propUser != null && !propUser.trim().isEmpty()) return propUser.trim();
+        String propUser = DB_PROPS.getProperty("db.user",
+                DB_PROPS.getProperty("user", DB_PROPS.getProperty("username")));
+        if (propUser != null && !propUser.trim().isEmpty())
+            return propUser.trim();
         return DEFAULT_DB_USER;
     }
 
@@ -87,7 +93,8 @@ public class DBConnection {
         }
         // 2. Local properties file fallback
         String propPass = DB_PROPS.getProperty("db.password", DB_PROPS.getProperty("password"));
-        if (propPass != null) return propPass.trim();
+        if (propPass != null)
+            return propPass.trim();
         return DEFAULT_DB_PASSWORD;
     }
 
@@ -103,10 +110,9 @@ public class DBConnection {
             Class.forName(DRIVER_CLASS);
         } catch (ClassNotFoundException e) {
             throw new ExceptionInInitializerError(
-                "MySQL JDBC Driver not found. "
-                + "Ensure mysql-connector-java is on the classpath. "
-                + "Cause: " + e.getMessage()
-            );
+                    "MySQL JDBC Driver not found. "
+                            + "Ensure mysql-connector-java is on the classpath. "
+                            + "Cause: " + e.getMessage());
         }
     }
 

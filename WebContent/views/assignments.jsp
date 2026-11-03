@@ -203,6 +203,7 @@
         .view-assignment:hover { background: #283593; }
         .alert-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; }
         .empty-state { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 32px; text-align: center; color: #6b7280; }
+        .assignment-status { margin-top: 8px; color: #475569; font-size: .9rem; }
         @media (max-width: 560px) {
             .navbar { align-items: flex-start; flex-wrap: wrap; gap: 8px; }
             .navbar-menu { flex-wrap: wrap; gap: 4px; }
@@ -211,29 +212,13 @@
         }
 
     </style>
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/assets/css/student-portal.css">
 </head>
 <body>
 
-    <!-- Navbar -->
-    <nav class="navbar">
-        <a href="${pageContext.request.contextPath}/home" class="navbar-brand">
-            <img src="${pageContext.request.contextPath}/assets/images/logo.png" alt="My Internship Technologies Logo" style="height: 32px; width: auto; object-fit: contain; margin-right: 10px; border-radius: 4px; background: #ffffff; padding: 2px;" />
-            <span>My Internship Technologies</span>
-        </a>
-        <div class="navbar-menu">
-            <a href="${pageContext.request.contextPath}/home" class="nav-link">Home</a>
-            <a href="${pageContext.request.contextPath}/dashboard" class="nav-link">My Dashboard</a>
-            <a href="${pageContext.request.contextPath}/profile" class="nav-link">Profile</a>
-            <a href="${pageContext.request.contextPath}/assignments" class="nav-link active">Assignments</a>
-            <a href="${pageContext.request.contextPath}/courses" class="nav-link">Video Courses</a>
-            <a href="${pageContext.request.contextPath}/lectures" class="nav-link">Lectures</a>
-            <a href="${pageContext.request.contextPath}/certifications" class="nav-link">Certifications</a>
-            <a href="${pageContext.request.contextPath}/question-bank" class="nav-link">Question Bank</a>
-            <a href="${pageContext.request.contextPath}/resume-analysis" class="nav-link">Resume Analysis</a>
-            <span style="font-size: 0.88rem; color: #cbd5e0; margin-left: 6px; white-space: nowrap;">Hi, <c:out value="${not empty sessionScope.userFirstName ? sessionScope.userFirstName : (not empty sessionScope.user.firstName ? sessionScope.user.firstName : (not empty user.firstName ? user.firstName : 'Student'))}"/></span>
-            <a href="${pageContext.request.contextPath}/logout" class="btn-logout">Logout</a>
-        </div>
-    </nav>
+    <jsp:include page="/views/student-navigation.jsp">
+        <jsp:param name="active" value="assignments"/>
+    </jsp:include>
 
     <!-- Content -->
     <div class="container">
@@ -257,7 +242,8 @@
                         </div>
                         <h2 class="card-title"><c:out value="${asn.title}"/></h2>
                         <div class="card-subject"><c:out value="${asn.subject}"/></div>
-                        <a class="view-assignment" href="${pageContext.request.contextPath}/assignment-details?assignmentId=${asn.assignmentId}">View Assignment</a>
+                        <p class="assignment-status">Status: <strong><c:out value="${asn.status}" default="Assigned"/></strong></p>
+                        <a class="view-assignment" href="${pageContext.request.contextPath}/assignment-details?studentAssignmentId=${asn.studentAssignmentId}">View Assignment</a>
                     </div>
                 </div>
             </c:forEach>

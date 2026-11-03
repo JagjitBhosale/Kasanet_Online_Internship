@@ -68,8 +68,8 @@
         .panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 4px 14px #0f172a0a; }
         .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
         label { display: block; font-size: .9rem; font-weight: 650; margin-bottom: 6px; }
-        input, textarea { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 7px; font: inherit; }
-        input:focus, textarea:focus { outline: 2px solid #93c5fd; border-color: #2563eb; }
+        input, textarea, select { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 7px; font: inherit; }
+        input:focus, textarea:focus, select:focus { outline: 2px solid #93c5fd; border-color: #2563eb; }
         textarea { min-height: 110px; resize: vertical; }
         .full { grid-column: 1 / -1; }
         .hint { color: #64748b; font-size: .82rem; margin: 5px 0 0; }
@@ -91,6 +91,10 @@
         .status { font-weight: 700; }
         .status.active { color: #15803d; }
         .status.inactive { color: #b91c1c; }
+        .completion-report + .completion-report { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--border-color); }
+        .completion-report h3 { margin-bottom: 4px; color: var(--text-main); font-size: 1.05rem; }
+        .completion-report .muted { margin-bottom: 12px; }
+        .completion-metrics { display: flex; flex-wrap: wrap; gap: 10px 20px; margin-bottom: 14px; color: var(--text-main); }
         @media (max-width: 680px) {
             .panel { padding: 17px; }
             .form-grid { grid-template-columns: 1fr; }
@@ -186,6 +190,7 @@
         <div class="notice error"><c:out value="${flashMessage}"/></div>
     </c:if>
 
+    <c:if test="${not assignmentManagementUnavailable}">
     <section class="panel">
         <h2><c:choose><c:when test="${formAssignment.assignmentId > 0}">Edit assignment</c:when><c:otherwise>Create assignment</c:otherwise></c:choose></h2>
         <form action="${pageContext.request.contextPath}/admin/assignments" method="post" enctype="multipart/form-data">
@@ -234,6 +239,23 @@
                     <input id="isActive" type="checkbox" name="isActive" value="true" <c:if test="${formAssignment.active}">checked</c:if>>
                     <label for="isActive" style="margin:0">Publish assignment immediately (active)</label>
                 </div>
+                <c:if test="${formAssignment.assignmentId == 0}">
+                    <div class="full">
+                        <label for="distributionMode">Distribute after creation</label>
+                        <select id="distributionMode" name="distributionMode">
+                            <option value="none">Create without assigning yet</option>
+                            <option value="all">Assign to all students</option>
+                            <option value="selected">Assign to selected students</option>
+                        </select>
+                        <label for="createStudentIds" style="margin-top:10px">Selected students</label>
+                        <select id="createStudentIds" name="studentIds" multiple size="6">
+                            <c:forEach items="${studentsForAllocation}" var="student">
+                                <option value="${student.studentId}"><c:out value="${student.name}"/> (#<c:out value="${student.studentId}"/>)</option>
+                            </c:forEach>
+                        </select>
+                        <p class="hint">Only used for selected-student distribution. Allocation is part of the assignment-creation transaction.</p>
+                    </div>
+                </c:if>
             </div>
             <p class="hint">Required: title, code, subject, description, due date, marks, and either text instructions or a PDF.</p>
             <div class="actions" style="margin-top:16px">
@@ -282,6 +304,104 @@
                 </div>
             </c:otherwise>
         </c:choose>
+    </section>
+
+    <section class="panel">
+        <h2>Distribute an existing assignment</h2>
+        <c:if test="${not empty studentLoadError}">
+            <div class="notice error"><c:out value="${studentLoadError}"/></div>
+        </c:if>
+        <c:choose>
+            <c:when test="${empty assignmentList}">
+                <p class="muted">Create an assignment before distributing it.</p>
+            </c:when>
+            <c:otherwise>
+                <form action="${pageContext.request.contextPath}/admin/assignments" method="post" enctype="multipart/form-data">
+                    <input type="hidden" name="csrfToken" value="<c:out value='${csrfToken}'/>">
+                    <input type="hidden" name="action" value="distribute">
+                    <div class="form-grid">
+                        <div>
+                            <label for="distributionAssignment">Assignment *</label>
+                            <select id="distributionAssignment" name="assignmentId" required>
+                                <c:forEach items="${assignmentList}" var="asn">
+                                    <option value="${asn.assignmentId}"><c:out value="${asn.assignmentNumber}"/> — <c:out value="${asn.title}"/></option>
+                                </c:forEach>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="distributionModeExisting">Recipients *</label>
+                            <select id="distributionModeExisting" name="distributionMode" required>
+                                <option value="all">All students</option>
+                                <option value="selected">Selected students</option>
+                            </select>
+                        </div>
+                        <div class="full">
+                            <label for="distributionStudentIds">Selected students</label>
+                            <select id="distributionStudentIds" name="studentIds" multiple size="6">
+                                <c:forEach items="${studentsForAllocation}" var="student">
+                                    <option value="${student.studentId}"><c:out value="${student.name}"/> (#<c:out value="${student.studentId}"/>)</option>
+                                </c:forEach>
+                            </select>
+                            <p class="hint">Required for selected-student distribution. Students already assigned to this master assignment are skipped.</p>
+                        </div>
+                    </div>
+                    <div class="actions" style="margin-top:16px">
+                        <button class="primary" type="submit">Distribute assignment</button>
+                    </div>
+                </form>
+            </c:otherwise>
+        </c:choose>
+    </section>
+    </c:if>
+
+    <section class="panel">
+        <h2>Assignment completion report</h2>
+        <c:if test="${not empty completionReportError}">
+            <div class="notice error"><c:out value="${completionReportError}"/></div>
+        </c:if>
+        <c:if test="${empty completionReportError}">
+        <c:choose>
+            <c:when test="${not empty assignmentCompletionReports}">
+                <c:forEach items="${assignmentCompletionReports}" var="report">
+                    <div class="completion-report">
+                        <h3><c:out value="${report.title}" default="Untitled assignment"/></h3>
+                        <p class="muted">
+                            Assignment: <c:out value="${not empty report.assignmentReference ? report.assignmentReference : report.assignmentId}"/>
+                            <c:if test="${not empty report.subject}"> · <c:out value="${report.subject}"/></c:if>
+                        </p>
+                        <div class="completion-metrics">
+                            <span>Total assigned: <strong><c:out value="${report.totalAssigned}"/></strong></span>
+                            <span>Completed: <strong><c:out value="${report.completed}"/></strong></span>
+                            <span>Pending: <strong><c:out value="${report.pending}"/></strong></span>
+                            <span>Completion: <strong><c:out value="${report.completionPercentage}"/>%</strong></span>
+                        </div>
+                        <c:if test="${report.unassignedAllocationCount gt 0}">
+                            <p class="hint"><c:out value="${report.unassignedAllocationCount}"/> allocation row(s) have no valid student ID and are excluded from student totals.</p>
+                        </c:if>
+                        <div class="table-wrap">
+                            <table>
+                                <thead><tr><th>Student ID</th><th>Student</th><th>Completion status</th></tr></thead>
+                                <tbody>
+                                    <c:forEach items="${report.students}" var="student">
+                                        <tr>
+                                            <td><c:out value="${student.studentId}"/></td>
+                                            <td><c:out value="${student.name}"/></td>
+                                            <td class="status ${student.completed ? 'active' : 'inactive'}">
+                                                <c:out value="${student.completed ? 'Completed' : 'Pending'}"/>
+                                            </td>
+                                        </tr>
+                                    </c:forEach>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </c:forEach>
+            </c:when>
+            <c:otherwise>
+                <p class="muted">There are no master assignments to report.</p>
+            </c:otherwise>
+        </c:choose>
+        </c:if>
     </section>
 </div>
 </main>

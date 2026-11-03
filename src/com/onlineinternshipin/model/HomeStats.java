@@ -14,6 +14,7 @@ public class HomeStats {
     private int    profileCompletion;
     private int    totalAssignments;
     private int    pendingAssignments;
+    private int    completedAssignments;
     private int    submittedAssignments;
     private int    evaluatedAssignments;
     private int    totalLectures;
@@ -66,6 +67,11 @@ public class HomeStats {
     public int getPendingAssignments() { return pendingAssignments; }
     public void setPendingAssignments(int pendingAssignments) { this.pendingAssignments = pendingAssignments; }
 
+    public int getCompletedAssignments() { return completedAssignments; }
+    public void setCompletedAssignments(int completedAssignments) {
+        this.completedAssignments = completedAssignments;
+    }
+
     public int getSubmittedAssignments() { return submittedAssignments; }
     public void setSubmittedAssignments(int submittedAssignments) { this.submittedAssignments = submittedAssignments; }
 
@@ -115,6 +121,11 @@ public class HomeStats {
         return (int) Math.round((submittedAssignments * 100.0) / totalAssignments);
     }
 
+    public int getAssignmentCompletionPercent() {
+        if (totalAssignments == 0) return 0;
+        return (int) Math.round((completedAssignments * 100.0) / totalAssignments);
+    }
+
     // -------------------------------------------------------------------------
     // toString
     // -------------------------------------------------------------------------
@@ -125,6 +136,7 @@ public class HomeStats {
                 ", profileCompletion=" + profileCompletion +
                 ", totalAssignments=" + totalAssignments +
                 ", pendingAssignments=" + pendingAssignments +
+                ", completedAssignments=" + completedAssignments +
                 ", submittedAssignments=" + submittedAssignments +
                 ", evaluatedAssignments=" + evaluatedAssignments +
                 ", totalLectures=" + totalLectures +

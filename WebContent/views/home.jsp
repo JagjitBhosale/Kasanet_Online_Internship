@@ -315,6 +315,18 @@
             color: var(--text-muted);
             font-weight: 500;
         }
+        .stat-card .stat-detail {
+            margin-top: 8px;
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            line-height: 1.5;
+        }
+        .dashboard-quick-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: -12px 0 28px;
+        }
 
         /* Account Details Card */
         .info-card {
@@ -404,29 +416,13 @@
             cursor: pointer;
         }
     </style>
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/assets/css/student-portal.css">
 </head>
 <body>
 
-    <!-- Top Navbar -->
-    <nav class="navbar">
-        <a href="${pageContext.request.contextPath}/home" class="navbar-brand">
-            <img src="${pageContext.request.contextPath}/assets/images/logo.png" alt="My Internship Technologies Logo" style="height: 32px; width: auto; object-fit: contain; margin-right: 10px; border-radius: 4px; background: #ffffff; padding: 2px;" />
-            <span>My Internship Technologies</span>
-        </a>
-        <div class="navbar-menu">
-            <a href="${pageContext.request.contextPath}/home" class="nav-link active">Home</a>
-            <a href="${pageContext.request.contextPath}/dashboard" class="nav-link">My Dashboard</a>
-            <a href="${pageContext.request.contextPath}/profile" class="nav-link">Profile</a>
-            <a href="${pageContext.request.contextPath}/assignments" class="nav-link">Assignments</a>
-            <a href="${pageContext.request.contextPath}/courses" class="nav-link">Video Courses</a>
-            <a href="${pageContext.request.contextPath}/lectures" class="nav-link">Lectures</a>
-            <a href="${pageContext.request.contextPath}/certifications" class="nav-link">Certifications</a>
-            <a href="${pageContext.request.contextPath}/question-bank" class="nav-link">Question Bank</a>
-            <a href="${pageContext.request.contextPath}/resume-analysis" class="nav-link">Resume Analysis</a>
-            <span style="font-size: 0.88rem; color: #cbd5e0; margin-left: 6px; white-space: nowrap;">Hi, <c:out value="${not empty sessionScope.userFirstName ? sessionScope.userFirstName : (not empty sessionScope.user.firstName ? sessionScope.user.firstName : (not empty user.firstName ? user.firstName : 'Student'))}"/></span>
-            <a href="${pageContext.request.contextPath}/logout" class="btn-logout">Logout</a>
-        </div>
-    </nav>
+    <jsp:include page="/views/student-navigation.jsp">
+        <jsp:param name="active" value="home"/>
+    </jsp:include>
 
     <!-- Main Container -->
     <div class="container">
@@ -442,6 +438,38 @@
                 <div class="label">Profile Completion</div>
             </div>
         </div>
+
+        <div class="section-header">Your Progress</div>
+        <div class="stats-grid" aria-label="Student progress summary">
+            <div class="stat-card">
+                <div class="stat-val"><c:out value="${stats.totalAssignments}"/></div>
+                <div class="stat-lbl">Active assignments allocated</div>
+                <p class="stat-detail">Completed: <c:out value="${stats.completedAssignments}"/>
+                    &middot; Pending: <c:out value="${stats.pendingAssignments}"/>
+                    &middot; Completion: <c:out value="${stats.assignmentCompletionPercent}"/>%</p>
+            </div>
+            <div class="stat-card">
+                <div class="stat-val">Unavailable</div>
+                <div class="stat-lbl">Course count</div>
+                <p class="stat-detail">The supplied production schema has no course or enrollment tables.</p>
+            </div>
+            <div class="stat-card">
+                <div class="stat-val">Unavailable</div>
+                <div class="stat-lbl">Test count</div>
+                <p class="stat-detail">Test results have no verified relationship to student.id.</p>
+            </div>
+            <div class="stat-card">
+                <div class="stat-val">Unavailable</div>
+                <div class="stat-lbl">Project count</div>
+                <p class="stat-detail">The production schema has no normalized per-student projects table.</p>
+            </div>
+        </div>
+        <nav class="dashboard-quick-actions" aria-label="Dashboard quick actions">
+            <a href="${pageContext.request.contextPath}/profile" class="btn-module">Complete Profile</a>
+            <a href="${pageContext.request.contextPath}/courses" class="btn-module">View Courses</a>
+            <a href="${pageContext.request.contextPath}/assignments" class="btn-module">View Assignments</a>
+            <a href="${pageContext.request.contextPath}/dashboard?section=report-details" class="btn-module">View Reports</a>
+        </nav>
 
         <!-- 5 Core Portal Sections -->
         <div class="section-header">Internship Modules</div>
@@ -468,7 +496,12 @@
                     </div>
                     <h3 class="module-title">Assignments</h3>
                     <p class="module-desc">View practical internship assignments, due dates, and instructions provided by your admin.</p>
-                    <div class="module-stats">Available assignments: <strong>${stats.totalAssignments}</strong></div>
+                    <div class="module-stats">
+                        Assigned: <strong><c:out value="${stats.totalAssignments}"/></strong>
+                        &middot; Completed: <strong><c:out value="${stats.completedAssignments}"/></strong>
+                        &middot; Pending: <strong><c:out value="${stats.pendingAssignments}"/></strong>
+                        &middot; Completion: <strong><c:out value="${stats.assignmentCompletionPercent}"/>%</strong>
+                    </div>
                 </div>
                 <a href="${pageContext.request.contextPath}/assignments" class="btn-module">View Assignments &rarr;</a>
             </div>
@@ -481,7 +514,7 @@
                     </div>
                     <h3 class="module-title">Lectures</h3>
                     <p class="module-desc">Watch recorded technical tutorials, architecture walkthroughs, and mentor code sessions.</p>
-                    <div class="module-stats">Completed: <strong>${stats.completedLectures} / ${stats.totalLectures}</strong></div>
+                    <div class="module-stats">Progress statistics are unavailable in the supplied production schema.</div>
                 </div>
                 <a href="${pageContext.request.contextPath}/lectures" class="btn-module">Access Lectures &rarr;</a>
             </div>

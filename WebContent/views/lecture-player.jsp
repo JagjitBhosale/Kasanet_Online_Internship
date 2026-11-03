@@ -66,6 +66,16 @@
             z-index: 100;
         }
 
+        .player-contextbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 12px 28px;
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-color);
+        }
+
         .nav-left {
             display: flex;
             align-items: center;
@@ -871,11 +881,15 @@
             to { opacity: 1; transform: translateY(0); }
         }
     </style>
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/assets/css/student-portal.css">
 </head>
 <body oncontextmenu="return false;">
 
-    <!-- ─── TOP NAVBAR ─── -->
-    <header class="player-navbar">
+    <jsp:include page="/views/student-navigation.jsp">
+        <jsp:param name="active" value="courses"/>
+    </jsp:include>
+
+    <div class="player-contextbar">
         <div class="nav-left">
             <a href="${pageContext.request.contextPath}/courses?id=${course.courseId}" class="back-btn" id="btnBackToCourse">
                 <i class="fa-solid fa-arrow-left"></i>
@@ -895,7 +909,7 @@
                 <span>Protected Video Stream</span>
             </div>
         </div>
-    </header>
+    </div>
 
     <!-- ─── MAIN DUAL-PANE VIEWPORT ─── -->
     <main class="player-viewport">

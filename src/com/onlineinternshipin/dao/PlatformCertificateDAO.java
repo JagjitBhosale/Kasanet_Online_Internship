@@ -29,9 +29,9 @@ public class PlatformCertificateDAO {
     }
 
     public List<PlatformCertificate> getAllWithStudent() throws SQLException {
-        String sql = "SELECT c.*, CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')) AS student_name, "
-                + "u.email AS student_email FROM platform_certificates c "
-                + "LEFT JOIN users u ON c.user_id = u.user_id "
+        String sql = "SELECT c.*, CONCAT(COALESCE(s.fname, ''), ' ', COALESCE(s.lname, '')) AS student_name, "
+                + "s.email AS student_email FROM platform_certificates c "
+                + "LEFT JOIN student s ON c.user_id = s.id "
                 + "ORDER BY c.achievement_date DESC, c.certificate_id DESC";
         List<PlatformCertificate> certificates = new ArrayList<>();
         try (Connection connection = DBConnection.getConnection();

@@ -15,6 +15,8 @@ public class Assignment {
     // Assignment (core) Fields
     // -------------------------------------------------------------------------
     private int       assignmentId;
+    private int       studentAssignmentId;
+    private String    assignmentReference;
     private String    title;
     private String    subject;
     private String    description;
@@ -74,6 +76,16 @@ public class Assignment {
     // -------------------------------------------------------------------------
     public int getAssignmentId() { return assignmentId; }
     public void setAssignmentId(int assignmentId) { this.assignmentId = assignmentId; }
+
+    public int getStudentAssignmentId() { return studentAssignmentId; }
+    public void setStudentAssignmentId(int studentAssignmentId) {
+        this.studentAssignmentId = studentAssignmentId;
+    }
+
+    public String getAssignmentReference() { return assignmentReference; }
+    public void setAssignmentReference(String assignmentReference) {
+        this.assignmentReference = assignmentReference;
+    }
 
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
@@ -136,6 +148,8 @@ public class Assignment {
     public String toString() {
         return "Assignment{" +
                 "assignmentId=" + assignmentId +
+                ", studentAssignmentId=" + studentAssignmentId +
+                ", assignmentReference='" + assignmentReference + '\'' +
                 ", title='" + title + '\'' +
                 ", subject='" + subject + '\'' +
                 ", description='" + description + '\'' +

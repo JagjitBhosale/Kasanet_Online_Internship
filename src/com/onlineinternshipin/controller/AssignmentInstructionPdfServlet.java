@@ -34,9 +34,12 @@ public class AssignmentInstructionPdfServlet extends HttpServlet {
             return;
         }
 
+        boolean admin = SessionUtil.isAdmin(request);
+        String idParameter = admin ? "assignmentId" : "studentAssignmentId";
         int assignmentId;
         try {
-            assignmentId = Integer.parseInt(request.getParameter("assignmentId"));
+            String id = request.getParameter(idParameter);
+            assignmentId = Integer.parseInt(id);
             if (assignmentId <= 0) {
                 throw new NumberFormatException();
             }
@@ -47,9 +50,18 @@ public class AssignmentInstructionPdfServlet extends HttpServlet {
 
         Path pdf;
         try {
-            Assignment assignment = assignmentDAO.getAssignmentById(assignmentId);
-            if (assignment == null || (!assignment.isActive() && !SessionUtil.isAdmin(request))
-                    || assignment.getInstructionPdfPath() == null) {
+            Assignment assignment;
+            if (admin) {
+                assignment = assignmentDAO.getAssignmentById(assignmentId);
+            } else {
+                Integer studentId = SessionUtil.getUserId(request);
+                if (studentId == null) {
+                    response.sendRedirect(request.getContextPath() + "/login");
+                    return;
+                }
+                assignment = assignmentDAO.getAssignmentForStudent(assignmentId, studentId);
+            }
+            if (assignment == null || assignment.getInstructionPdfPath() == null) {
                 response.sendError(HttpServletResponse.SC_NOT_FOUND);
                 return;
             }
