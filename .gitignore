@@ -29,4 +29,5 @@ Thumbs.db
 
 *.war
 WebContent/WEB-INF/classes/
+apache-tomcat-*/
 
