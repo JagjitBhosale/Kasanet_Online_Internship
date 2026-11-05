@@ -123,9 +123,7 @@ public class VideoCompressionUtil {
             command.add("-c:a");
             command.add("aac");
             command.add("-b:a");
-            command.add("96k");
-            command.add("-ar");
-            command.add("44100");
+            command.add("128k");
             command.add("-movflags");
             command.add("+faststart");
             command.add("-max_muxing_queue_size");

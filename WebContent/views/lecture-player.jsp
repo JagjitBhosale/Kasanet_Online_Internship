@@ -1254,6 +1254,9 @@
 
             function applyVideoStream(url, expiresIn, resumeSeconds) {
                 video.src = url;
+                video.muted = false;
+                video.volume = parseFloat(volumeSlider.value) || 1.0;
+                updateVolumeUI();
                 loadingOverlay.classList.add('hidden');
 
                 if (resumeSeconds > 0) {
