@@ -68,10 +68,17 @@ CREATE TABLE `admintest` (
 
 CREATE TABLE `assignment` (
   `assign_id` int(11) NOT NULL,
-  `subject` varchar(100) NOT NULL,
+  `subject` varchar(200) NOT NULL,
   `assign_name` varchar(350) NOT NULL,
+  `assignment_code` varchar(50) DEFAULT NULL,
+  `description` text,
+  `instructions_text` text,
+  `instruction_pdf_path` varchar(500) DEFAULT NULL,
+  `due_date` date DEFAULT NULL,
+  `total_marks` int(11) DEFAULT 100,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
   `create_date` date NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -292,6 +299,94 @@ CREATE TABLE `countries` (
   `Name` varchar(100) DEFAULT NULL,
   `Population` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `courses`
+--
+
+CREATE TABLE `courses` (
+  `id` int(11) NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `slug` varchar(255) DEFAULT NULL,
+  `description` text,
+  `thumbnail_url` varchar(500) DEFAULT NULL,
+  `instructor_name` varchar(255) DEFAULT NULL,
+  `category` varchar(100) DEFAULT 'Engineering',
+  `difficulty` varchar(50) DEFAULT 'Beginner',
+  `duration_weeks` int(11) NOT NULL DEFAULT 6,
+  `total_lessons` int(11) NOT NULL DEFAULT 0,
+  `status` varchar(20) NOT NULL DEFAULT 'PUBLISHED',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `enrollments`
+--
+
+CREATE TABLE `enrollments` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `course_id` int(11) NOT NULL,
+  `progress_percentage` int(11) NOT NULL DEFAULT 0,
+  `completed_lessons` int(11) NOT NULL DEFAULT 0,
+  `enrolled_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `completed_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `lectures`
+--
+
+CREATE TABLE `lectures` (
+  `id` int(11) NOT NULL,
+  `course_id` int(11) NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `description` text,
+  `lecture_number` int(11) NOT NULL DEFAULT 1,
+  `cloudinary_public_id` varchar(255) DEFAULT NULL,
+  `duration_seconds` int(11) NOT NULL DEFAULT 0,
+  `is_preview` tinyint(1) NOT NULL DEFAULT 0,
+  `status` varchar(20) NOT NULL DEFAULT 'PUBLISHED',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `lecture_progress`
+--
+
+CREATE TABLE `lecture_progress` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `lecture_id` int(11) NOT NULL,
+  `progress_seconds` int(11) NOT NULL DEFAULT 0,
+  `completed` tinyint(1) NOT NULL DEFAULT 0,
+  `last_watched_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `video_access_logs`
+--
+
+CREATE TABLE `video_access_logs` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `lecture_id` int(11) NOT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `user_agent` varchar(500) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -570,20 +665,21 @@ CREATE TABLE `student` (
 
 CREATE TABLE `student_assignment_data` (
   `student_assignment_id` int(11) NOT NULL,
-  `examination_id` varchar(100) NOT NULL,
+  `examination_id` varchar(100) DEFAULT NULL,
   `student_id` int(11) DEFAULT NULL,
   `assign_id` varchar(255) NOT NULL,
-  `company_name` varchar(255) NOT NULL,
-  `assign_subject` varchar(100) NOT NULL,
-  `assign_level` varchar(350) NOT NULL,
+  `assignment_master_id` int(11) DEFAULT NULL,
+  `company_name` varchar(255) DEFAULT NULL,
+  `assign_subject` varchar(200) NOT NULL,
+  `assign_level` varchar(350) DEFAULT NULL,
   `assign_topic` varchar(350) NOT NULL,
-  `assign_descrition` varchar(350) NOT NULL,
+  `assign_descrition` varchar(350) DEFAULT NULL,
   `assign_code` text,
   `assign_status` varchar(255) DEFAULT 'Assigned',
   `assign_flag` varchar(100) DEFAULT 'No',
   `assign_result` varchar(350) DEFAULT 'Pending',
   `create_date` date NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -765,7 +861,8 @@ ALTER TABLE `admin`
 -- Indexes for table `assignment`
 --
 ALTER TABLE `assignment`
-  ADD PRIMARY KEY (`assign_id`);
+  ADD PRIMARY KEY (`assign_id`),
+  ADD UNIQUE KEY `uk_assignment_code` (`assignment_code`);
 
 --
 -- Indexes for table `assignmentinfo`
@@ -924,7 +1021,54 @@ ALTER TABLE `student`
 --
 ALTER TABLE `student_assignment_data`
   ADD PRIMARY KEY (`student_assignment_id`),
-  ADD KEY `student_id` (`student_id`);
+  ADD KEY `student_id` (`student_id`),
+  ADD KEY `idx_sad_master_id` (`assignment_master_id`),
+  ADD UNIQUE KEY `uk_sad_assignment_student` (`assignment_master_id`, `student_id`);
+
+--
+-- Indexes for table `courses`
+--
+ALTER TABLE `courses`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uk_course_slug` (`slug`),
+  ADD KEY `idx_course_status` (`status`),
+  ADD KEY `idx_course_category` (`category`);
+
+--
+-- Indexes for table `enrollments`
+--
+ALTER TABLE `enrollments`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uk_enrollment_user_course` (`user_id`, `course_id`),
+  ADD KEY `idx_enrollment_user` (`user_id`),
+  ADD KEY `idx_enrollment_course` (`course_id`);
+
+--
+-- Indexes for table `lectures`
+--
+ALTER TABLE `lectures`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_lecture_course` (`course_id`),
+  ADD KEY `idx_lecture_status` (`status`),
+  ADD KEY `idx_lecture_order` (`course_id`, `lecture_number`);
+
+--
+-- Indexes for table `lecture_progress`
+--
+ALTER TABLE `lecture_progress`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uk_progress_user_lecture` (`user_id`, `lecture_id`),
+  ADD KEY `idx_progress_user` (`user_id`),
+  ADD KEY `idx_progress_lecture` (`lecture_id`);
+
+--
+-- Indexes for table `video_access_logs`
+--
+ALTER TABLE `video_access_logs`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_val_ip_time` (`ip_address`, `created_at`),
+  ADD KEY `idx_val_user` (`user_id`),
+  ADD KEY `idx_val_lecture` (`lecture_id`);
 
 --
 -- Indexes for table `studynotes`
@@ -1179,6 +1323,36 @@ ALTER TABLE `student_assignment_data`
   MODIFY `student_assignment_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT for table `courses`
+--
+ALTER TABLE `courses`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `enrollments`
+--
+ALTER TABLE `enrollments`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `lectures`
+--
+ALTER TABLE `lectures`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `lecture_progress`
+--
+ALTER TABLE `lecture_progress`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `video_access_logs`
+--
+ALTER TABLE `video_access_logs`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `studynotes`
 --
 ALTER TABLE `studynotes`
@@ -1270,7 +1444,35 @@ ALTER TABLE `assignment_question`
 -- Constraints for table `student_assignment_data`
 --
 ALTER TABLE `student_assignment_data`
-  ADD CONSTRAINT `student_assignment_data_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `student` (`id`);
+  ADD CONSTRAINT `student_assignment_data_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `student` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_sad_assignment_master` FOREIGN KEY (`assignment_master_id`) REFERENCES `assignment` (`assign_id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+--
+-- Constraints for table `lectures`
+--
+ALTER TABLE `lectures`
+  ADD CONSTRAINT `fk_lecture_course` FOREIGN KEY (`course_id`) REFERENCES `courses` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Constraints for table `enrollments`
+--
+ALTER TABLE `enrollments`
+  ADD CONSTRAINT `fk_enrollment_student` FOREIGN KEY (`user_id`) REFERENCES `student` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_enrollment_course` FOREIGN KEY (`course_id`) REFERENCES `courses` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Constraints for table `lecture_progress`
+--
+ALTER TABLE `lecture_progress`
+  ADD CONSTRAINT `fk_progress_student` FOREIGN KEY (`user_id`) REFERENCES `student` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_progress_lecture` FOREIGN KEY (`lecture_id`) REFERENCES `lectures` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Constraints for table `video_access_logs`
+--
+ALTER TABLE `video_access_logs`
+  ADD CONSTRAINT `fk_val_student` FOREIGN KEY (`user_id`) REFERENCES `student` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_val_lecture` FOREIGN KEY (`lecture_id`) REFERENCES `lectures` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
 -- Constraints for table `studynotes1`

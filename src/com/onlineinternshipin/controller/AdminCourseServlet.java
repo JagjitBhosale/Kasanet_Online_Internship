@@ -6,6 +6,7 @@ import com.onlineinternshipin.model.Course;
 import com.onlineinternshipin.model.Lecture;
 import com.onlineinternshipin.utility.CloudinaryUtil;
 import com.onlineinternshipin.utility.SessionUtil;
+import com.onlineinternshipin.utility.VideoCompressionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -300,18 +301,31 @@ public class AdminCourseServlet extends HttpServlet {
             // Cloudinary publicId path
             String publicId = "kasanet/lectures/course_" + courseId + "/lecture_" + lectureId + "_" + System.currentTimeMillis();
 
-            Map<String, Object> uploadResult = CloudinaryUtil.uploadVideo(tempFile, publicId);
-            tempFile.delete();
+            File fileToUpload = tempFile;
+            try {
+                // Compress server-side using FFmpeg if size exceeds threshold
+                fileToUpload = VideoCompressionUtil.compressVideo(tempFile);
 
-            String uploadedPublicId = (String) uploadResult.get("public_id");
-            Number durationNum = (Number) uploadResult.get("duration");
-            int durationSeconds = durationNum != null ? (int) Math.round(durationNum.doubleValue()) : 0;
+                Map<String, Object> uploadResult = CloudinaryUtil.uploadVideo(fileToUpload, publicId);
 
-            // Update database
-            lectureDAO.updateLectureVideo(lectureId, uploadedPublicId, durationSeconds);
+                String uploadedPublicId = (String) uploadResult.get("public_id");
+                Number durationNum = (Number) uploadResult.get("duration");
+                int durationSeconds = durationNum != null ? (int) Math.round(durationNum.doubleValue()) : 0;
 
-            resp.sendRedirect(req.getContextPath() + "/admin/courses?manage=" + courseId + "&success=video_uploaded");
-            return;
+                // Update database
+                lectureDAO.updateLectureVideo(lectureId, uploadedPublicId, durationSeconds);
+
+                resp.sendRedirect(req.getContextPath() + "/admin/courses?manage=" + courseId + "&success=video_uploaded");
+                return;
+            } finally {
+                // Clean up temporary files
+                if (fileToUpload != null && fileToUpload != tempFile && fileToUpload.exists()) {
+                    fileToUpload.delete();
+                }
+                if (tempFile != null && tempFile.exists()) {
+                    tempFile.delete();
+                }
+            }
 
         } catch (Exception e) {
             logger.error("Error during video upload for lecture: {}", lectureId, e);

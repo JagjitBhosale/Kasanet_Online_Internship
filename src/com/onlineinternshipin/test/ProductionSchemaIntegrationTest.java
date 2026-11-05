@@ -1,13 +1,22 @@
 package com.onlineinternshipin.test;
 
 import com.onlineinternshipin.dao.AdminDAO;
+import com.onlineinternshipin.dao.AssignmentDAO;
+import com.onlineinternshipin.dao.CourseDAO;
 import com.onlineinternshipin.dao.EducationDAO;
 import com.onlineinternshipin.dao.EngineeringMarksDAO;
+import com.onlineinternshipin.dao.EnrollmentDAO;
+import com.onlineinternshipin.dao.LectureDAO;
 import com.onlineinternshipin.dao.ProfileDAO;
 import com.onlineinternshipin.dao.SkillDAO;
 import com.onlineinternshipin.dao.StudentDAO;
+import com.onlineinternshipin.dao.VideoAccessLogDAO;
+import com.onlineinternshipin.model.Assignment;
+import com.onlineinternshipin.model.Course;
 import com.onlineinternshipin.model.Education;
 import com.onlineinternshipin.model.EngineeringMarks;
+import com.onlineinternshipin.model.Enrollment;
+import com.onlineinternshipin.model.Lecture;
 import com.onlineinternshipin.model.Skill;
 import com.onlineinternshipin.model.Student;
 import com.onlineinternshipin.model.StudentProfile;
@@ -44,6 +53,11 @@ public class ProductionSchemaIntegrationTest {
         EducationDAO educationDAO = new EducationDAO();
         SkillDAO skillDAO = new SkillDAO();
         EngineeringMarksDAO marksDAO = new EngineeringMarksDAO();
+        AssignmentDAO assignmentDAO = new AssignmentDAO();
+        CourseDAO courseDAO = new CourseDAO();
+        LectureDAO lectureDAO = new LectureDAO();
+        EnrollmentDAO enrollmentDAO = new EnrollmentDAO();
+        VideoAccessLogDAO videoAccessLogDAO = new VideoAccessLogDAO();
         AuthenticationService authService = new AuthenticationService(studentDAO, adminDAO);
 
         try {
@@ -71,6 +85,12 @@ public class ProductionSchemaIntegrationTest {
 
             // 5. ENGINEERING YEAR-WISE PERFORMANCE TESTS
             testEngineeringMarksStorage(studentDAO, marksDAO);
+
+            // 6. STUDENT ASSIGNMENT MANAGEMENT TESTS
+            testAssignmentsAndAllocations(studentDAO, assignmentDAO);
+
+            // 7. COURSE, LECTURE, ENROLLMENT & VIDEO ACCESS TESTS
+            testCoursesLecturesAndStudentProgress(studentDAO, courseDAO, lectureDAO, enrollmentDAO, videoAccessLogDAO);
 
             System.out.println("\n=================================================================");
             System.out.println("TEST RESULTS: " + testsPassed + " PASSED, " + testsFailed + " FAILED");
@@ -100,8 +120,14 @@ public class ProductionSchemaIntegrationTest {
     private static void cleanupTestRecords() {
         try (Connection conn = DBConnection.getConnection();
              Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate("DELETE FROM `video_access_logs` WHERE user_id IN (SELECT id FROM `student` WHERE email LIKE '%@testsuite.com')");
+            stmt.executeUpdate("DELETE FROM `lecture_progress` WHERE user_id IN (SELECT id FROM `student` WHERE email LIKE '%@testsuite.com')");
+            stmt.executeUpdate("DELETE FROM `enrollments` WHERE user_id IN (SELECT id FROM `student` WHERE email LIKE '%@testsuite.com')");
+            stmt.executeUpdate("DELETE FROM `student_assignment_data` WHERE student_id IN (SELECT id FROM `student` WHERE email LIKE '%@testsuite.com')");
             stmt.executeUpdate("DELETE FROM `engineering_year_marks` WHERE user_id IN (SELECT id FROM `student` WHERE email LIKE '%@testsuite.com')");
             stmt.executeUpdate("DELETE FROM `student` WHERE email LIKE '%@testsuite.com'");
+            stmt.executeUpdate("DELETE FROM `courses` WHERE slug LIKE 'test-%'");
+            stmt.executeUpdate("DELETE FROM `assignment` WHERE assignment_code LIKE 'TEST-%'");
         } catch (Exception ignored) {}
     }
 
@@ -512,5 +538,102 @@ public class ProductionSchemaIntegrationTest {
 
         List<EngineeringMarks> remaining = marksDAO.getMarksByUserId(s.getId());
         assertTrue("Engineering Marks - Remaining Count 1", remaining != null && remaining.size() == 1, "Remaining count is 1 after deletion");
+    }
+
+    // -------------------------------------------------------------------------
+    // 6. Student Assignment Management Tests
+    // -------------------------------------------------------------------------
+    private static void testAssignmentsAndAllocations(StudentDAO studentDAO, AssignmentDAO assignmentDAO) throws Exception {
+        Student s = studentDAO.getStudentByEmail("aarav.patel@testsuite.com");
+        assertTrue("Assignment Test - Student Exists", s != null && s.getId() > 0, "Test student must exist");
+
+        // 1. Create a Master Assignment
+        Assignment a = new Assignment();
+        a.setSubject("Java Enterprise");
+        a.setTitle("Module 1 Practice Assignment");
+        a.setAssignmentNumber("TEST-JAVA-001");
+        a.setDescription("Create a complete MVC servlet workflow with database persistence.");
+        a.setInstructionsText("Submit your source zip file before the due date.");
+        a.setDueDate(java.sql.Date.valueOf("2026-12-31"));
+        a.setTotalMarks(100);
+        a.setActive(true);
+
+        int assignmentId = assignmentDAO.createAssignmentAndDistribute(
+                a, "selected", Arrays.asList(s.getId()));
+        assertTrue("Assignment Test - Master Created and Distributed", assignmentId > 0, "Master assignment created");
+
+        // 2. Fetch Assignments For Student
+        List<Assignment> studentAssignments = assignmentDAO.getAssignmentsForStudent(s.getId());
+        assertTrue("Assignment Test - Student Has 1 Assignment", studentAssignments != null && !studentAssignments.isEmpty(),
+                "Student should have received distributed assignment");
+
+        Assignment studentAssignment = studentAssignments.get(0);
+        assertTrue("Assignment Test - Status is Assigned", "Assigned".equalsIgnoreCase(studentAssignment.getStatus()),
+                "Initial assignment status must be Assigned");
+        assertTrue("Assignment Test - Code Aligned", "TEST-JAVA-001".equals(studentAssignment.getAssignmentNumber())
+                || "TEST-JAVA-001".equals(studentAssignment.getAssignmentReference()), "Assignment code matches");
+
+        // 3. Update Student Assignment Status to Completed
+        boolean updated = assignmentDAO.updateStudentAssignmentStatus(
+                studentAssignment.getStudentAssignmentId(), s.getId(), "Assigned", "Completed");
+        assertTrue("Assignment Test - Status Transition to Completed", updated, "Status updated to Completed");
+    }
+
+    // -------------------------------------------------------------------------
+    // 7. Course, Lecture, Enrollment & Video Access Tests
+    // -------------------------------------------------------------------------
+    private static void testCoursesLecturesAndStudentProgress(StudentDAO studentDAO, CourseDAO courseDAO,
+                                                             LectureDAO lectureDAO, EnrollmentDAO enrollmentDAO,
+                                                             VideoAccessLogDAO videoAccessLogDAO) throws Exception {
+        Student s = studentDAO.getStudentByEmail("aarav.patel@testsuite.com");
+        assertTrue("Course Video Test - Student Exists", s != null && s.getId() > 0, "Test student must exist");
+
+        // 1. Create Course
+        Course c = new Course();
+        c.setTitle("Test Web Dev Course");
+        c.setSlug("test-web-dev-course");
+        c.setDescription("Automated integration test course");
+        c.setInstructorName("Prof. Test Instructor");
+        c.setCategory("Engineering");
+        c.setDifficulty("Beginner");
+        c.setDurationWeeks(4);
+        c.setStatus("PUBLISHED");
+
+        int courseId = courseDAO.createCourse(c);
+        assertTrue("Course Video Test - Course Created", courseId > 0, "Course created in database");
+
+        // 2. Create Lecture
+        Lecture l = new Lecture();
+        l.setCourseId(courseId);
+        l.setTitle("Introduction to Servlets");
+        l.setDescription("First lecture overview");
+        l.setLectureNumber(1);
+        l.setCloudinaryPublicId("kasanet/test/lecture_intro");
+        l.setDurationSeconds(600);
+        l.setPreview(true);
+        l.setStatus("PUBLISHED");
+
+        int lectureId = lectureDAO.createLecture(l);
+        assertTrue("Course Video Test - Lecture Created", lectureId > 0, "Lecture created in database");
+
+        // 3. Enroll Student (ForeignKey user_id -> student.id)
+        boolean enrolled = enrollmentDAO.enroll(s.getId(), courseId);
+        assertTrue("Course Video Test - Student Enrolled", enrolled || enrollmentDAO.isEnrolled(s.getId(), courseId),
+                "Student enrolled in course");
+
+        // 4. Save Watch Progress (ForeignKey user_id -> student.id, lecture_id -> lectures.id)
+        boolean progressSaved = lectureDAO.saveLectureProgress(lectureId, s.getId(), 300, false);
+        assertTrue("Course Video Test - Watch Progress Saved", progressSaved, "Progress saved in lecture_progress");
+
+        // 5. Log Video Access (ForeignKey user_id -> student.id, lecture_id -> lectures.id)
+        boolean accessLogged = videoAccessLogDAO.logAccess(s.getId(), lectureId, "127.0.0.1", "TestSuite/1.0");
+        assertTrue("Course Video Test - Video Access Logged", accessLogged, "Access record saved in video_access_logs");
+
+        int accessCount = videoAccessLogDAO.countByUser(s.getId());
+        assertTrue("Course Video Test - Access Count >= 1", accessCount >= 1, "Access count recorded for student");
+
+        // 6. Clean up test course and lecture (cascades to enrollments, lecture_progress, video_access_logs)
+        boolean courseDeleted = courseDAO.deleteCourse(courseId);
+        assertTrue("Course Video Test - Cascade Cleanup Course", courseDeleted, "Course deleted successfully");
     }
 }

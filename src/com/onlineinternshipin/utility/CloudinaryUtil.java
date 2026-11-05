@@ -58,6 +58,7 @@ public class CloudinaryUtil {
         params.put("resource_type", "video");
         params.put("overwrite", true);
         params.put("invalidate", true);
+        params.put("quality", "auto:good");
         if (publicId != null && !publicId.trim().isEmpty()) {
             params.put("public_id", publicId);
         }

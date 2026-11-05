@@ -236,3 +236,153 @@ Student (extends User)
   ```
 - **Relationship**: `user_id` foreign key referencing `student(id)` with cascade delete on student deletion.
 - **Safety**: Purely additive. Preserves all existing tables and data.
+
+---
+
+## 6. Student Assignment Management Architecture
+
+### 6.1 Assignment Master Table: `assignment`
+Stores administrative assignment definitions created by instructors/administrators.
+
+| Column Name | SQL Data Type | Nullable | Default | Business Purpose / Mapping |
+|---|---|---|---|---|
+| `assign_id` | `INT(11)` | NO | AUTO_INCREMENT | Master primary key (`assignmentId`) |
+| `subject` | `VARCHAR(200)` | NO | | Subject/Domain name (e.g. Java, Cloud) (`subject`) |
+| `assign_name` | `VARCHAR(350)` | NO | | Assignment display title (`title`) |
+| `assignment_code` | `VARCHAR(50)` | YES | NULL | Unique code / slug (e.g. `JAVA-MOD1-A1`) (`assignmentNumber`) |
+| `description` | `TEXT` | YES | NULL | Full assignment prompt and problem description (`description`) |
+| `instructions_text` | `TEXT` | YES | NULL | Step-by-step submission instructions (`instructionsText`) |
+| `instruction_pdf_path` | `VARCHAR(500)` | YES | NULL | Relative path to optional uploaded reference PDF (`instructionPdfPath`) |
+| `due_date` | `DATE` | YES | NULL | Submission deadline (`dueDate`) |
+| `total_marks` | `INT(11)` | YES | 100 | Maximum achievable score (`totalMarks`) |
+| `is_active` | `TINYINT(1)` | NO | 1 | Visibility flag for student dashboard (`isActive`) |
+| `create_date` | `DATE` | NO | CURRENT_DATE | Assignment creation date (`createdAt`) |
+
+### 6.2 Student Assignment Allocation Table: `student_assignment_data`
+Tracks individual student assignment allocations, statuses, submissions, and grading.
+
+| Column Name | SQL Data Type | Nullable | Constraints & Relational Mapping |
+|---|---|---|---|
+| `student_assignment_id` | `INT(11)` | NO | PRIMARY KEY AUTO_INCREMENT |
+| `student_id` | `INT(11)` | YES | **FK &rarr; `student(id)` ON DELETE CASCADE** (`studentId`) |
+| `assignment_master_id` | `INT(11)` | YES | **FK &rarr; `assignment(assign_id)` ON UPDATE CASCADE** (`assignmentId`) |
+| `assign_id` | `VARCHAR(255)` | NO | Legacy display identifier / copies `assignment_code` |
+| `assign_subject` | `VARCHAR(200)` | NO | Subject mirrored from master assignment row |
+| `assign_topic` | `VARCHAR(350)` | NO | Title mirrored from master `assign_name` |
+| `assign_code` | `TEXT` | YES | Optional code submission or text payload |
+| `assign_status` | `VARCHAR(255)` | YES | Workflow state: `Assigned`, `Completed` |
+| `assign_result` | `VARCHAR(350)` | YES | Evaluation notes / grade remarks (`remarks`) |
+| `create_date` | `DATE` | NO | Allocation timestamp (`assignedDate`) |
+
+- **Foreign Key Constraints**:
+  - `student_id` &rarr; references `student(id)` with ON DELETE CASCADE.
+  - `assignment_master_id` &rarr; references `assignment(assign_id)`.
+  - `UNIQUE KEY uk_sad_assignment_student (assignment_master_id, student_id)` prevents accidental duplicate allocations while allowing unassigned legacy rows.
+
+---
+
+## 7. Course, Lecture & Video Streaming Architecture
+
+### 7.1 Entity Relationship Overview
+The Video Lecture System provides DRM-protected streaming, Cloudinary video integration, student enrollment tracking, and per-lecture watch progress. All student interactions reference the central `student(id)` record.
+
+```text
+              ┌───────────────┐
+              │    student    │
+              │  (Primary ID) │
+              └───┬───┬───┬───┘
+                  │   │   │
+        ┌─────────┘   │   └───────────────┐
+        │ user_id     │ user_id           │ user_id
+        ▼             ▼                   ▼
+┌──────────────┐ ┌──────────────────┐ ┌───────────────────┐
+│ enrollments  │ │ lecture_progress │ │ video_access_logs │
+└───────┬──────┘ └────────┬─────────┘ └─────────┬─────────┘
+        │                 │                     │
+        │ course_id       │ lecture_id          │ lecture_id
+        ▼                 ▼                     │
+┌──────────────┐ ┌──────────────────┐           │
+│   courses    │ │     lectures     │◄──────────┘
+│              │◄┤ (course_id FK)   │
+└──────────────┘ └──────────────────┘
+```
+
+### 7.2 Tables Specification
+
+#### 1. `courses` Table
+Master catalog of published and draft training courses.
+- `id`: INT(11) AUTO_INCREMENT PRIMARY KEY
+- `title`: VARCHAR(255) NOT NULL
+- `slug`: VARCHAR(255) UNIQUE
+- `description`: TEXT
+- `thumbnail_url`: VARCHAR(500)
+- `instructor_name`: VARCHAR(255)
+- `category`: VARCHAR(100) (e.g. 'Engineering')
+- `difficulty`: VARCHAR(50) ('Beginner', 'Intermediate', 'Advanced')
+- `duration_weeks`: INT NOT NULL DEFAULT 6
+- `total_lessons`: INT NOT NULL DEFAULT 0
+- `status`: VARCHAR(20) NOT NULL DEFAULT 'PUBLISHED' ('DRAFT', 'PUBLISHED', 'ARCHIVED')
+- `created_at`, `updated_at`: TIMESTAMP
+
+#### 2. `lectures` Table
+Video lectures belonging to a course, referencing Cloudinary assets.
+- `id`: INT(11) AUTO_INCREMENT PRIMARY KEY
+- `course_id`: INT(11) NOT NULL &rarr; **FK `courses(id)` ON DELETE CASCADE ON UPDATE CASCADE**
+- `title`: VARCHAR(255) NOT NULL
+- `description`: TEXT
+- `lecture_number`: INT NOT NULL DEFAULT 1
+- `cloudinary_public_id`: VARCHAR(255) (Cloudinary public ID, NOT public URL)
+- `duration_seconds`: INT NOT NULL DEFAULT 0
+- `is_preview`: TINYINT(1) NOT NULL DEFAULT 0 (1 = previewable without enrollment)
+- `status`: VARCHAR(20) NOT NULL DEFAULT 'PUBLISHED' ('DRAFT', 'PUBLISHED')
+- `created_at`, `updated_at`: TIMESTAMP
+
+#### 3. `enrollments` Table
+Tracks student enrollment in courses and calculated completion percentage.
+- `id`: INT(11) AUTO_INCREMENT PRIMARY KEY
+- `user_id`: INT(11) NOT NULL &rarr; **FK `student(id)` ON DELETE CASCADE ON UPDATE CASCADE**
+- `course_id`: INT(11) NOT NULL &rarr; **FK `courses(id)` ON DELETE CASCADE ON UPDATE CASCADE**
+- `progress_percentage`: INT NOT NULL DEFAULT 0
+- `completed_lessons`: INT NOT NULL DEFAULT 0
+- `enrolled_at`: TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+- `completed_at`: TIMESTAMP NULL DEFAULT NULL
+- `UNIQUE KEY uk_enrollment_user_course (user_id, course_id)`
+
+#### 4. `lecture_progress` Table
+Tracks granular watch position and completion per student per lecture.
+- `id`: INT(11) AUTO_INCREMENT PRIMARY KEY
+- `user_id`: INT(11) NOT NULL &rarr; **FK `student(id)` ON DELETE CASCADE ON UPDATE CASCADE**
+- `lecture_id`: INT(11) NOT NULL &rarr; **FK `lectures(id)` ON DELETE CASCADE ON UPDATE CASCADE**
+- `progress_seconds`: INT NOT NULL DEFAULT 0
+- `completed`: TINYINT(1) NOT NULL DEFAULT 0
+- `last_watched_at`: TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+- `UNIQUE KEY uk_progress_user_lecture (user_id, lecture_id)`
+- **Logic**: Updated via UPSERT (`ON DUPLICATE KEY UPDATE progress_seconds = GREATEST(progress_seconds, ?)`), ensuring watch progress never decreases.
+
+#### 5. `video_access_logs` Table
+Audit trail and security rate limiter logging video streaming access per student.
+- `id`: INT(11) AUTO_INCREMENT PRIMARY KEY
+- `user_id`: INT(11) NOT NULL &rarr; **FK `student(id)` ON DELETE CASCADE ON UPDATE CASCADE**
+- `lecture_id`: INT(11) NOT NULL &rarr; **FK `lectures(id)` ON DELETE CASCADE ON UPDATE CASCADE**
+- `ip_address`: VARCHAR(45)
+- `user_agent`: VARCHAR(500)
+- `created_at`: TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+
+---
+
+## 8. Relational Foreign Key Integrity Matrix
+
+| Dependent Table | FK Column | Referenced Parent Table | Parent PK Column | On Delete Action | On Update Action |
+|---|---|---|---|---|---|
+| `student_assignment_data` | `student_id` | `student` | `id` | `CASCADE` | `CASCADE` |
+| `student_assignment_data` | `assignment_master_id` | `assignment` | `assign_id` | `RESTRICT / SET NULL` | `CASCADE` |
+| `lectures` | `course_id` | `courses` | `id` | `CASCADE` | `CASCADE` |
+| `enrollments` | `user_id` | `student` | `id` | `CASCADE` | `CASCADE` |
+| `enrollments` | `course_id` | `courses` | `id` | `CASCADE` | `CASCADE` |
+| `lecture_progress` | `user_id` | `student` | `id` | `CASCADE` | `CASCADE` |
+| `lecture_progress` | `lecture_id` | `lectures` | `id` | `CASCADE` | `CASCADE` |
+| `video_access_logs` | `user_id` | `student` | `id` | `CASCADE` | `CASCADE` |
+| `video_access_logs` | `lecture_id` | `lectures` | `id` | `CASCADE` | `CASCADE` |
+| `engineering_year_marks` | `user_id` | `student` | `id` | `CASCADE` | `CASCADE` |
+| `platform_certificates` | `user_id` | `student` | `id` | `CASCADE` | `CASCADE` |
+

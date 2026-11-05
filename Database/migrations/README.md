@@ -18,6 +18,7 @@ The central source of truth for base production schema is:
 | `V002__create_engineering_year_marks.sql` | Creates `engineering_year_marks` table for storing 1-to-many year-wise engineering scores (First Year, Second Year, Third Year, Final Year) per student | None (new additive table, foreign-keyed to `student.id`) | Yes (`DROP TABLE IF EXISTS engineering_year_marks;`) |
 | `V003__create_platform_certificates.sql` | Creates `platform_certificates` for exam name, score, and achievement date, which are not stored by the production `certificate` PDF table | None (new additive table, foreign-keyed to `student.id`) | Yes (`DROP TABLE IF EXISTS platform_certificates;`) |
 | `V004__enhance_assignment_management.sql` | Adds master assignment fields, a typed allocation reference, duplicate-allocation protection, and nullable legacy fields with no source in the admin workflow | Preserves existing rows; legacy allocations remain unlinked, and existing assignments default to inactive | Conditional; see rollback instructions in the migration (new metadata is discarded) |
+| `V005__add_courses_lectures_videos_schema.sql` | Creates `courses`, `lectures`, `enrollments`, `lecture_progress`, and `video_access_logs` tables with foreign keys linked directly to production `student(id)` and `courses(id)` | None (new additive tables + non-destructive column checks on assignment tables) | Yes (`DROP TABLE IF EXISTS video_access_logs, lecture_progress, enrollments, lectures, courses;`) |
 
 ---
 
@@ -41,6 +42,7 @@ mysql -u root -p onlineinternship < Database/migrations/V001__add_student_indexe
 mysql -u root -p onlineinternship < Database/migrations/V002__create_engineering_year_marks.sql
 mysql -u root -p onlineinternship < Database/migrations/V003__create_platform_certificates.sql
 mysql -u root -p onlineinternship < Database/migrations/V004__enhance_assignment_management.sql
+mysql -u root -p onlineinternship < Database/migrations/V005__add_courses_lectures_videos_schema.sql
 ```
 
 ### CloudJiffy / Remote Production
