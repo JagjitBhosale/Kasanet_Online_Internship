@@ -58,13 +58,12 @@ public class CloudinaryUtil {
         params.put("resource_type", "video");
         params.put("overwrite", true);
         params.put("invalidate", true);
-        params.put("quality", "auto:good");
         if (publicId != null && !publicId.trim().isEmpty()) {
             params.put("public_id", publicId);
         }
 
-        logger.info("Uploading video to Cloudinary: {} (publicId={})", file.getName(), publicId);
-        return cloudinary.uploader().upload(file, params);
+        logger.info("Uploading video to Cloudinary using chunked uploadLarge: {} (publicId={})", file.getName(), publicId);
+        return (Map<String, Object>) cloudinary.uploader().uploadLarge(file, params);
     }
 
     /**

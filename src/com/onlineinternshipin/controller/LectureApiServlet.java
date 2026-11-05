@@ -172,9 +172,15 @@ public class LectureApiServlet extends HttpServlet {
             return;
         }
 
-        // 7. Audit Logging
+        // 7. Audit Logging (only logged for enrolled students; ignore for admins previewing videos)
         String userAgent = req.getHeader("User-Agent");
-        videoAccessLogDAO.logAccess(userId, lectureId, clientIp, userAgent);
+        if (!isAdmin) {
+            try {
+                videoAccessLogDAO.logAccess(userId, lectureId, clientIp, userAgent);
+            } catch (Exception ex) {
+                logger.warn("Could not log video access for student {}: {}", userId, ex.getMessage());
+            }
+        }
 
         // 8. Generate 5-minute (300s) authenticated signed Cloudinary URL
         int expiresInSeconds = 300;
@@ -263,11 +269,21 @@ public class LectureApiServlet extends HttpServlet {
             }
         }
 
-        // Upsert progress with GREATEST logic
-        boolean saved = lectureDAO.saveLectureProgress(lectureId, userId, progressSeconds, completed);
+        // Upsert progress with GREATEST logic (tracked for students; skipped for previewing admins)
+        boolean saved = true;
+        int coursePercentage = 0;
+        String role = SessionUtil.getUserRole(req);
+        boolean isAdmin = "ADMIN".equalsIgnoreCase(role);
 
-        // Recalculate course enrollment progress
-        int coursePercentage = enrollmentDAO.recalculateCourseProgress(userId, lecture.getCourseId());
+        if (!isAdmin) {
+            try {
+                saved = lectureDAO.saveLectureProgress(lectureId, userId, progressSeconds, completed);
+                coursePercentage = enrollmentDAO.recalculateCourseProgress(userId, lecture.getCourseId());
+            } catch (Exception ex) {
+                logger.warn("Could not save lecture progress for user {}: {}", userId, ex.getMessage());
+                saved = false;
+            }
+        }
 
         JSONObject json = new JSONObject();
         json.put("status", saved ? "success" : "failed");

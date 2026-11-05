@@ -287,11 +287,11 @@ public class AdminCourseServlet extends HttpServlet {
             String fileName = extractFileName(videoPart);
             logger.info("Uploading lecture video: {} (size: {} bytes)", fileName, videoPart.getSize());
 
-            // Write temporary file
+            // Write temporary file using 64KB buffer
             File tempFile = File.createTempFile("kasnet_vid_", ".mp4");
             try (InputStream in = videoPart.getInputStream();
                  FileOutputStream out = new FileOutputStream(tempFile)) {
-                byte[] buffer = new byte[8192];
+                byte[] buffer = new byte[65536];
                 int bytesRead;
                 while ((bytesRead = in.read(buffer)) != -1) {
                     out.write(buffer, 0, bytesRead);
@@ -301,12 +301,17 @@ public class AdminCourseServlet extends HttpServlet {
             // Cloudinary publicId path
             String publicId = "kasanet/lectures/course_" + courseId + "/lecture_" + lectureId + "_" + System.currentTimeMillis();
 
+            long startUploadTime = System.currentTimeMillis();
             File fileToUpload = tempFile;
             try {
                 // Compress server-side using FFmpeg if size exceeds threshold
+                long compressStart = System.currentTimeMillis();
                 fileToUpload = VideoCompressionUtil.compressVideo(tempFile);
+                long compressMs = System.currentTimeMillis() - compressStart;
 
+                long cloudStart = System.currentTimeMillis();
                 Map<String, Object> uploadResult = CloudinaryUtil.uploadVideo(fileToUpload, publicId);
+                long cloudMs = System.currentTimeMillis() - cloudStart;
 
                 String uploadedPublicId = (String) uploadResult.get("public_id");
                 Number durationNum = (Number) uploadResult.get("duration");
@@ -314,6 +319,9 @@ public class AdminCourseServlet extends HttpServlet {
 
                 // Update database
                 lectureDAO.updateLectureVideo(lectureId, uploadedPublicId, durationSeconds);
+
+                logger.info("Video upload pipeline completed for lecture {} in {}ms (compress: {}ms, cloudinary: {}ms)",
+                        lectureId, (System.currentTimeMillis() - startUploadTime), compressMs, cloudMs);
 
                 resp.sendRedirect(req.getContextPath() + "/admin/courses?manage=" + courseId + "&success=video_uploaded");
                 return;
