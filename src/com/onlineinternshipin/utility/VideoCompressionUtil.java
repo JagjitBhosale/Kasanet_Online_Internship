@@ -18,13 +18,12 @@ import java.util.concurrent.TimeUnit;
  *
  * Optimizations:
  * 1. ultrafast H.264 preset with multithreading (-threads 0) for sub-5s compression.
- * 2. Intelligent resolution downscaling to max 720p (-vf scale='min(1280,iw)':-2) with even padding
- *    to prevent odd-dimension failures and cut pixel processing by up to 85%.
+ * 2. Intelligent resolution downscaling with even padding to prevent odd-dimension failures.
  * 3. 30 fps cap (-r 30) to eliminate bloated 60/120 fps overhead on lectures.
  * 4. Safe audio stream mapping (-map 0:v:0 -map 0:a?) so videos without audio never fail.
  * 5. Web streaming optimization (+faststart) and universal browser compatibility (yuv420p).
  * 6. Dynamic FFmpeg discovery across WinGet, system PATH, environment variables, and Linux production paths.
- * 7. Non-blocking graceful fallback to original file if FFmpeg is unavailable or times out.
+ * 7. Bitrate-cap mode for large files to GUARANTEE output fits under Cloudinary limit.
  */
 public class VideoCompressionUtil {
 
@@ -37,23 +36,34 @@ public class VideoCompressionUtil {
     public static final long COMPRESSION_THRESHOLD_BYTES = 15L * 1024L * 1024L;
 
     /**
-     * Maximum execution time for video compression process (3 minutes).
+     * Cloudinary free-plan hard limit (100 MB). Compressed output must stay below this.
      */
-    private static final long COMPRESSION_TIMEOUT_MINUTES = 3L;
+    public static final long CLOUDINARY_MAX_BYTES = 95L * 1024L * 1024L; // 95 MB safety margin
 
-    // Cache the resolved FFmpeg path
+    /**
+     * Maximum execution time for video compression process (15 minutes for large/long files).
+     */
+    private static final long COMPRESSION_TIMEOUT_MINUTES = 15L;
+
+    // Cache the resolved FFmpeg path — reset on failure so next call retries
     private static volatile String cachedFfmpegPath = null;
     private static volatile Boolean ffmpegAvailable = null;
 
     private VideoCompressionUtil() {}
 
     /**
-     * Compresses the given video file if its size exceeds {@value #COMPRESSION_THRESHOLD_BYTES}.
+     * Compresses the given video file if its size exceeds the threshold.
+     *
+     * Strategy:
+     * - Files > 95 MB: Use bitrate-cap mode with ultrafast preset @ 480p.
+     *   Calculates exact bitrate from video duration to guarantee output < 85 MB.
+     * - Files between 15-95 MB: Use CRF 28 with ultrafast preset @ 720p.
      *
      * @param inputFile The temporary video file uploaded by the admin
      * @return A compressed File if successful, or the original inputFile if skipped/failed.
+     * @throws IOException if FFmpeg is unavailable AND file exceeds Cloudinary limit
      */
-    public static File compressVideo(File inputFile) {
+    public static File compressVideo(File inputFile) throws IOException {
         if (inputFile == null || !inputFile.exists()) {
             return inputFile;
         }
@@ -70,48 +80,143 @@ public class VideoCompressionUtil {
 
         String ffmpegPath = getFfmpegExecutablePath();
         if (ffmpegPath == null) {
-            logger.warn("FFmpeg executable not detected on server. Skipping compression for {} MB video.",
+            if (originalBytes > CLOUDINARY_MAX_BYTES) {
+                throw new IOException(
+                    "FFmpeg is not installed on this server. Cannot compress the video (" +
+                    String.format(Locale.US, "%.0f", originalMb) + " MB). " +
+                    "Cloudinary has a 100 MB upload limit. " +
+                    "Please install FFmpeg on the server, or upload a video smaller than 100 MB.");
+            }
+            logger.warn("FFmpeg not detected. File is {} MB (under 95 MB limit), uploading as-is.",
                     String.format(Locale.US, "%.2f", originalMb));
             return inputFile;
         }
 
-        logger.info("Starting fast server-side compression on {} ({} MB) using FFmpeg at: {}",
+        logger.info("Starting server-side compression on {} ({} MB) using FFmpeg at: {}",
                 inputFile.getName(), String.format(Locale.US, "%.2f", originalMb), ffmpegPath);
 
+        // ── STRATEGY: Choose compression based on file size ──
+        if (originalBytes > CLOUDINARY_MAX_BYTES) {
+            // ── LARGE FILE (> 95 MB): Bitrate-cap mode ──
+            // Use ffprobe to get duration, then calculate exact bitrate to guarantee < 85 MB output
+            double durationSec = getVideoDuration(ffmpegPath, inputFile);
+            if (durationSec <= 0) {
+                durationSec = 3600; // fallback: assume 1 hour
+                logger.warn("Could not determine video duration, assuming 3600s");
+            }
+
+            // Target 85 MB output: total bitrate = (85 * 8 * 1024 kbits) / duration_seconds
+            // Subtract audio bitrate to get video-only target
+            int audioBitrateKbps = 48; // 48 kbps for speech (adequate for lectures)
+            int totalTargetKbps = (int) ((85.0 * 8 * 1024) / durationSec);
+            int targetBitrateKbps = totalTargetKbps - audioBitrateKbps;
+            if (targetBitrateKbps < 80) targetBitrateKbps = 80; // minimum video quality floor
+
+            // For very long videos (>2 hours), use even more aggressive settings
+            if (durationSec > 7200) {
+                audioBitrateKbps = 32;
+                targetBitrateKbps = totalTargetKbps - audioBitrateKbps;
+                if (targetBitrateKbps < 64) targetBitrateKbps = 64;
+            }
+
+            logger.info("Large file mode: {} MB, duration={} sec, video bitrate={} kbps, audio={} kbps @ 480p ultrafast",
+                    String.format(Locale.US, "%.1f", originalMb),
+                    String.format(Locale.US, "%.0f", durationSec),
+                    targetBitrateKbps, audioBitrateKbps);
+
+            // Single pass: ultrafast preset, 480p, bitrate-capped
+            String scaleFilter = "scale='min(854,iw)':-2:flags=bicubic,pad=ceil(iw/2)*2:ceil(ih/2)*2";
+            File compressed = runFfmpeg(ffmpegPath, inputFile, -1, scaleFilter, "ultrafast", targetBitrateKbps, audioBitrateKbps);
+
+            if (compressed == null) {
+                throw new IOException(
+                    "FFmpeg compression failed for " + String.format(Locale.US, "%.0f", originalMb) +
+                    " MB video. Cloudinary limit is 100 MB. Please try a shorter or smaller video.");
+            }
+
+            double compressedMb = compressed.length() / (1024.0 * 1024.0);
+
+            // Final size check
+            if (compressed.length() > CLOUDINARY_MAX_BYTES) {
+                logger.warn("Compressed output is still {} MB (over 95 MB limit), deleting.", 
+                        String.format(Locale.US, "%.1f", compressedMb));
+                compressed.delete();
+                throw new IOException(
+                    "Video is still " + String.format(Locale.US, "%.0f", compressedMb) +
+                    " MB after compression. Cloudinary limit is 100 MB. " +
+                    "Please upload a shorter or lower-quality video.");
+            }
+
+            double reduction = (1.0 - ((double) compressed.length() / originalBytes)) * 100.0;
+            logger.info("Compression complete: {} MB → {} MB ({}% reduction) — under Cloudinary limit ✓",
+                    String.format(Locale.US, "%.1f", originalMb),
+                    String.format(Locale.US, "%.1f", compressedMb),
+                    String.format(Locale.US, "%.1f", reduction));
+            return compressed;
+
+        } else {
+            // ── NORMAL FILE (15-95 MB): CRF mode ──
+            // Quality-based compression at 720p — fast and good quality
+            logger.info("Normal file mode: {} MB, CRF 28 @ 720p ultrafast",
+                    String.format(Locale.US, "%.1f", originalMb));
+
+            String scaleFilter = "scale='min(1280,iw)':-2:flags=bicubic,pad=ceil(iw/2)*2:ceil(ih/2)*2";
+            File compressed = runFfmpeg(ffmpegPath, inputFile, 28, scaleFilter, "ultrafast", -1, 96);
+
+            if (compressed == null) {
+                logger.warn("FFmpeg compression failed, returning original file.");
+                return inputFile;
+            }
+
+            double compressedMb = compressed.length() / (1024.0 * 1024.0);
+            double reduction = (1.0 - ((double) compressed.length() / originalBytes)) * 100.0;
+            logger.info("Compression complete: {} MB → {} MB ({}% reduction)",
+                    String.format(Locale.US, "%.1f", originalMb),
+                    String.format(Locale.US, "%.1f", compressedMb),
+                    String.format(Locale.US, "%.1f", reduction));
+            return compressed;
+        }
+    }
+
+    /**
+     * Runs a single FFmpeg compression pass with the given CRF/bitrate and scale filter.
+     *
+     * @param targetBitrateKbps if > 0, uses bitrate cap mode instead of CRF
+     * @param audioBitrateKbps audio bitrate in kbps (48 for compressed, 96 for normal)
+     * @return Compressed file, or null if FFmpeg failed.
+     */
+    private static File runFfmpeg(String ffmpegPath, File inputFile, int crf, String scaleFilter,
+                                   String preset, int targetBitrateKbps, int audioBitrateKbps) {
         File compressedFile = null;
         try {
             compressedFile = File.createTempFile("kasnet_compressed_", ".mp4");
 
-            // Build optimized high-speed FFmpeg command:
-            // -y : overwrite destination
-            // -i <input>
-            // -vf scale='min(1280,iw)':-2:flags=bicubic,pad=ceil(iw/2)*2:ceil(ih/2)*2 :
-            //      downscale >720p to 720p, keep <=720p as is, guarantee even dimensions for H.264
-            // -r 30 : cap framerate at 30fps for lectures
-            // -c:v libx264 : standard H.264 video codec
-            // -preset ultrafast : maximize encoding speed to avoid HTTP request timeouts
-            // -crf 28 : optimal size-to-quality ratio for lectures / slides / screen captures
-            // -threads 0 : utilize all CPU cores
-            // -pix_fmt yuv420p : broad browser/mobile HTML5 video compatibility
-            // -map 0:v:0 -map 0:a? : map video and optional audio (never fail on mute videos)
-            // -c:a aac -b:a 96k -ar 44100 : clean, compressed voice audio
-            // -movflags +faststart : relocate moov atom to front for instant web playback
-            // -max_muxing_queue_size 2048 : prevent buffer overflows on high bitrate streams
             List<String> command = new ArrayList<>();
             command.add(ffmpegPath);
             command.add("-y");
             command.add("-i");
             command.add(inputFile.getAbsolutePath());
             command.add("-vf");
-            command.add("scale='min(1280,iw)':-2:flags=bicubic,pad=ceil(iw/2)*2:ceil(ih/2)*2");
+            command.add(scaleFilter);
             command.add("-r");
             command.add("30");
             command.add("-c:v");
             command.add("libx264");
             command.add("-preset");
-            command.add("ultrafast");
-            command.add("-crf");
-            command.add("28");
+            command.add(preset);
+            if (targetBitrateKbps > 0) {
+                // Bitrate-cap mode: guarantees output fits within size limit
+                command.add("-b:v");
+                command.add(targetBitrateKbps + "k");
+                command.add("-maxrate");
+                command.add(targetBitrateKbps + "k");
+                command.add("-bufsize");
+                command.add((targetBitrateKbps * 2) + "k");
+            } else {
+                // CRF mode: constant quality
+                command.add("-crf");
+                command.add(String.valueOf(crf));
+            }
             command.add("-threads");
             command.add("0");
             command.add("-pix_fmt");
@@ -123,12 +228,14 @@ public class VideoCompressionUtil {
             command.add("-c:a");
             command.add("aac");
             command.add("-b:a");
-            command.add("128k");
+            command.add(audioBitrateKbps + "k");
             command.add("-movflags");
             command.add("+faststart");
             command.add("-max_muxing_queue_size");
             command.add("2048");
             command.add(compressedFile.getAbsolutePath());
+
+            logger.info("FFmpeg command: {}", String.join(" ", command));
 
             ProcessBuilder pb = new ProcessBuilder(command);
             pb.redirectErrorStream(true);
@@ -136,7 +243,6 @@ public class VideoCompressionUtil {
             long startTime = System.currentTimeMillis();
             Process process = pb.start();
 
-            // Consume process output in background thread to prevent stdout/stderr buffer deadlocks
             StringBuilder processOutput = new StringBuilder();
             Thread outputReader = new Thread(() -> {
                 try (BufferedReader reader = new BufferedReader(
@@ -156,63 +262,65 @@ public class VideoCompressionUtil {
             outputReader.join(2000);
 
             if (!finished) {
-                logger.error("Video compression timed out after {} minutes. Killing FFmpeg process.", COMPRESSION_TIMEOUT_MINUTES);
+                logger.error("FFmpeg timed out after {} minutes. Killing process.", COMPRESSION_TIMEOUT_MINUTES);
                 process.destroyForcibly();
                 if (compressedFile.exists()) compressedFile.delete();
-                return inputFile;
+                return null;
             }
 
             int exitCode = process.exitValue();
             long durationMs = System.currentTimeMillis() - startTime;
 
             if (exitCode != 0 || !compressedFile.exists() || compressedFile.length() == 0) {
-                logger.error("FFmpeg exited with error code {}. Output:\n{}", exitCode, processOutput);
-                if (compressedFile != null && compressedFile.exists()) {
-                    compressedFile.delete();
-                }
-                return inputFile;
+                logger.error("FFmpeg exited with code {}. Output:\n{}", exitCode, processOutput);
+                if (compressedFile.exists()) compressedFile.delete();
+                return null;
             }
 
-            long compressedBytes = compressedFile.length();
-            double compressedMb = compressedBytes / (1024.0 * 1024.0);
-
-            // If compressed file is not smaller than original, stick with original
-            if (compressedBytes >= originalBytes) {
-                logger.info("Compressed file ({} MB) is not smaller than original ({} MB). Keeping original.",
-                        String.format(Locale.US, "%.2f", compressedMb),
-                        String.format(Locale.US, "%.2f", originalMb));
-                compressedFile.delete();
-                return inputFile;
-            }
-
-            double reductionPercent = (1.0 - ((double) compressedBytes / originalBytes)) * 100.0;
-            logger.info("Successfully compressed video in {}s: {} MB -> {} MB ({}% reduction)",
+            double inputMb = inputFile.length() / (1024.0 * 1024.0);
+            double outputMb = compressedFile.length() / (1024.0 * 1024.0);
+            logger.info("FFmpeg pass completed in {}s: {} MB -> {} MB",
                     String.format(Locale.US, "%.1f", durationMs / 1000.0),
-                    String.format(Locale.US, "%.2f", originalMb),
-                    String.format(Locale.US, "%.2f", compressedMb),
-                    String.format(Locale.US, "%.1f", reductionPercent));
+                    String.format(Locale.US, "%.2f", inputMb),
+                    String.format(Locale.US, "%.2f", outputMb));
 
             return compressedFile;
 
         } catch (Exception e) {
-            logger.error("Exception during video compression. Falling back to original file.", e);
+            logger.error("Exception during FFmpeg compression pass.", e);
             if (compressedFile != null && compressedFile.exists()) {
                 compressedFile.delete();
             }
-            return inputFile;
+            return null;
         }
     }
 
     /**
      * Resolves the path to the FFmpeg executable.
+     * Re-checks every time if previous check failed (no negative caching).
      */
     public static synchronized String getFfmpegExecutablePath() {
         if (cachedFfmpegPath != null) {
-            return cachedFfmpegPath;
+            // Verify cached path still works
+            File f = new File(cachedFfmpegPath);
+            if (f.exists() || "ffmpeg".equals(cachedFfmpegPath)) {
+                return cachedFfmpegPath;
+            }
+            // Cached path no longer valid, re-discover
+            cachedFfmpegPath = null;
+            ffmpegAvailable = null;
         }
 
-        // 1. Check EnvUtil / System Property / Environment Variable
-        String envPath = EnvUtil.get("FFMPEG_PATH");
+        logger.info("Searching for FFmpeg executable...");
+
+        // 1. Check EnvUtil / System Property / Environment Variable for FFMPEG_PATH
+        String envPath = null;
+        try {
+            envPath = EnvUtil.get("FFMPEG_PATH");
+            logger.info("EnvUtil.get(FFMPEG_PATH) = {}", envPath);
+        } catch (Exception e) {
+            logger.warn("EnvUtil.get failed: {}", e.getMessage());
+        }
         if (envPath == null || envPath.trim().isEmpty()) {
             envPath = System.getProperty("ffmpeg.path");
         }
@@ -221,10 +329,17 @@ public class VideoCompressionUtil {
         }
         if (envPath != null && !envPath.trim().isEmpty()) {
             File f = new File(envPath.trim());
-            if (f.exists() && checkFfmpegExecutable(f.getAbsolutePath())) {
-                cachedFfmpegPath = f.getAbsolutePath();
-                ffmpegAvailable = true;
-                return cachedFfmpegPath;
+            if (f.exists() && f.isFile()) {
+                if (checkFfmpegExecutable(f.getAbsolutePath())) {
+                    cachedFfmpegPath = f.getAbsolutePath();
+                    ffmpegAvailable = true;
+                    logger.info("FFmpeg found via FFMPEG_PATH: {}", cachedFfmpegPath);
+                    return cachedFfmpegPath;
+                } else {
+                    logger.warn("FFMPEG_PATH file exists but failed execution check: {}", f.getAbsolutePath());
+                }
+            } else {
+                logger.warn("FFMPEG_PATH points to non-existent file: {}", envPath);
             }
         }
 
@@ -232,31 +347,44 @@ public class VideoCompressionUtil {
         if (checkFfmpegExecutable("ffmpeg")) {
             cachedFfmpegPath = "ffmpeg";
             ffmpegAvailable = true;
+            logger.info("FFmpeg found in system PATH");
             return cachedFfmpegPath;
         }
 
         // 3. Dynamic search in WinGet Packages directory
-        String userHome = System.getProperty("user.home", "");
         String localAppData = System.getenv("LOCALAPPDATA");
+        String userHome = System.getProperty("user.home", "");
         if (localAppData == null || localAppData.trim().isEmpty()) {
             localAppData = userHome + File.separator + "AppData" + File.separator + "Local";
         }
+        logger.info("Searching WinGet packages at LOCALAPPDATA: {}", localAppData);
 
-        File wingetDir = new File(localAppData, "Microsoft\\WinGet\\Packages");
+        File wingetDir = new File(localAppData, "Microsoft" + File.separator + "WinGet" + File.separator + "Packages");
         if (wingetDir.exists() && wingetDir.isDirectory()) {
-            File discovered = findFfmpegRecursive(wingetDir, 4);
-            if (discovered != null && checkFfmpegExecutable(discovered.getAbsolutePath())) {
-                cachedFfmpegPath = discovered.getAbsolutePath();
-                ffmpegAvailable = true;
-                return cachedFfmpegPath;
+            File discovered = findFfmpegRecursive(wingetDir, 5);
+            if (discovered != null) {
+                if (checkFfmpegExecutable(discovered.getAbsolutePath())) {
+                    cachedFfmpegPath = discovered.getAbsolutePath();
+                    ffmpegAvailable = true;
+                    logger.info("FFmpeg found via WinGet search: {}", cachedFfmpegPath);
+                    return cachedFfmpegPath;
+                } else {
+                    logger.warn("WinGet ffmpeg.exe found but failed execution check: {}", discovered.getAbsolutePath());
+                }
             }
         }
 
-        // 4. Known common candidate paths (Windows, Linux, macOS)
+        // 4. Check WinGet Links directory
+        File wingetLinks = new File(localAppData, "Microsoft" + File.separator + "WinGet" + File.separator + "Links" + File.separator + "ffmpeg.exe");
+        if (wingetLinks.exists() && checkFfmpegExecutable(wingetLinks.getAbsolutePath())) {
+            cachedFfmpegPath = wingetLinks.getAbsolutePath();
+            ffmpegAvailable = true;
+            logger.info("FFmpeg found via WinGet Links: {}", cachedFfmpegPath);
+            return cachedFfmpegPath;
+        }
+
+        // 5. Known common candidate paths (Windows, Linux, macOS)
         String[] candidatePaths = {
-            // WinGet links
-            localAppData + "\\Microsoft\\WinGet\\Links\\ffmpeg.exe",
-            // Program Files & direct drives
             "C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe",
             "C:\\ffmpeg\\bin\\ffmpeg.exe",
             "C:\\ProgramData\\chocolatey\\bin\\ffmpeg.exe",
@@ -272,12 +400,16 @@ public class VideoCompressionUtil {
                 if (checkFfmpegExecutable(candidate)) {
                     cachedFfmpegPath = candidate;
                     ffmpegAvailable = true;
+                    logger.info("FFmpeg found at known path: {}", cachedFfmpegPath);
                     return cachedFfmpegPath;
                 }
             }
         }
 
+        // NOT FOUND — but do NOT cache the failure so next call retries
         ffmpegAvailable = false;
+        logger.warn("FFmpeg executable not detected on server. Searched: FFMPEG_PATH env, system PATH, " +
+                     "WinGet packages at {}, and known paths.", localAppData);
         return null;
     }
 
@@ -308,13 +440,22 @@ public class VideoCompressionUtil {
      */
     private static boolean checkFfmpegExecutable(String path) {
         try {
-            Process process = new ProcessBuilder(path, "-version").redirectErrorStream(true).start();
-            boolean finished = process.waitFor(5, TimeUnit.SECONDS);
+            ProcessBuilder pb = new ProcessBuilder(path, "-version");
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+            // Consume output to avoid blocking
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                while (reader.readLine() != null) { /* drain */ }
+            }
+            boolean finished = process.waitFor(10, TimeUnit.SECONDS);
             if (finished && process.exitValue() == 0) {
                 return true;
             }
             process.destroyForcibly();
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            logger.debug("FFmpeg check failed for '{}': {}", path, e.getMessage());
+        }
         return false;
     }
 
@@ -326,5 +467,57 @@ public class VideoCompressionUtil {
             getFfmpegExecutablePath();
         }
         return Boolean.TRUE.equals(ffmpegAvailable);
+    }
+
+    /**
+     * Gets the duration of a video file in seconds using ffprobe (bundled with ffmpeg).
+     */
+    private static double getVideoDuration(String ffmpegPath, File videoFile) {
+        try {
+            // Derive ffprobe path from ffmpeg path
+            String ffprobePath;
+            if ("ffmpeg".equals(ffmpegPath)) {
+                ffprobePath = "ffprobe";
+            } else {
+                ffprobePath = ffmpegPath.replace("ffmpeg.exe", "ffprobe.exe")
+                                         .replace("ffmpeg", "ffprobe");
+            }
+            // If ffprobe doesn't exist at derived path, try just "ffprobe"
+            if (!"ffprobe".equals(ffprobePath)) {
+                File ffprobeFile = new File(ffprobePath);
+                if (!ffprobeFile.exists()) {
+                    ffprobePath = "ffprobe";
+                }
+            }
+
+            logger.info("Getting video duration with: {} for {}", ffprobePath, videoFile.getName());
+
+            ProcessBuilder pb = new ProcessBuilder(
+                ffprobePath, "-v", "quiet", "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1", videoFile.getAbsolutePath()
+            );
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+
+            StringBuilder output = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    output.append(line.trim());
+                }
+            }
+
+            boolean finished = process.waitFor(15, TimeUnit.SECONDS);
+            if (finished && process.exitValue() == 0 && output.length() > 0) {
+                double duration = Double.parseDouble(output.toString().trim());
+                logger.info("Video duration: {} seconds", String.format(Locale.US, "%.1f", duration));
+                return duration;
+            }
+            process.destroyForcibly();
+        } catch (Exception e) {
+            logger.warn("Could not determine video duration: {}", e.getMessage());
+        }
+        return -1;
     }
 }

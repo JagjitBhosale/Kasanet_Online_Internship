@@ -268,24 +268,35 @@ public class AdminCourseServlet extends HttpServlet {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Video Upload (Direct file upload to Cloudinary)
+    // Video Upload (Direct file upload to Cloudinary with AJAX progress support)
     // ─────────────────────────────────────────────────────────────────────────
     private void handleUploadVideo(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         int lectureId = 0;
         int courseId = 0;
+
+        // Check if this is an AJAX request
+        boolean isAjax = "XMLHttpRequest".equals(req.getHeader("X-Requested-With"));
+
         try {
             lectureId = Integer.parseInt(req.getParameter("lectureId"));
             courseId = Integer.parseInt(req.getParameter("courseId"));
 
             Part videoPart = req.getPart("videoFile");
             if (videoPart == null || videoPart.getSize() == 0) {
-                resp.sendRedirect(req.getContextPath() + "/admin/courses?manage=" + courseId + "&err=no_file");
+                if (isAjax) {
+                    sendJsonResponse(resp, false, "No video file selected.", courseId);
+                } else {
+                    resp.sendRedirect(req.getContextPath() + "/admin/courses?manage=" + courseId + "&err=no_file");
+                }
                 return;
             }
 
             String fileName = extractFileName(videoPart);
-            logger.info("Uploading lecture video: {} (size: {} bytes)", fileName, videoPart.getSize());
+            long fileSize = videoPart.getSize();
+            double fileMb = fileSize / (1024.0 * 1024.0);
+            logger.info("Uploading lecture video: {} (size: {} bytes, {} MB)", fileName, fileSize,
+                    String.format(java.util.Locale.US, "%.0f", fileMb));
 
             // Write temporary file using 64KB buffer
             File tempFile = File.createTempFile("kasnet_vid_", ".mp4");
@@ -305,9 +316,25 @@ public class AdminCourseServlet extends HttpServlet {
             File fileToUpload = tempFile;
             try {
                 // Compress server-side using FFmpeg if size exceeds threshold
+                // This now throws IOException if FFmpeg is missing AND file > 100MB
                 long compressStart = System.currentTimeMillis();
                 fileToUpload = VideoCompressionUtil.compressVideo(tempFile);
                 long compressMs = System.currentTimeMillis() - compressStart;
+
+                // Final size guard — reject if still over Cloudinary limit
+                long finalSize = fileToUpload.length();
+                if (finalSize > VideoCompressionUtil.CLOUDINARY_MAX_BYTES) {
+                    double finalMb = finalSize / (1024.0 * 1024.0);
+                    String errMsg = "Video is still " + String.format(java.util.Locale.US, "%.0f", finalMb) +
+                            " MB after compression. Cloudinary limit is 100 MB. Please upload a shorter or lower-quality video.";
+                    logger.error(errMsg);
+                    if (isAjax) {
+                        sendJsonResponse(resp, false, errMsg, courseId);
+                    } else {
+                        resp.sendRedirect(req.getContextPath() + "/admin/courses?manage=" + courseId + "&err=file_too_large");
+                    }
+                    return;
+                }
 
                 long cloudStart = System.currentTimeMillis();
                 Map<String, Object> uploadResult = CloudinaryUtil.uploadVideo(fileToUpload, publicId);
@@ -320,10 +347,24 @@ public class AdminCourseServlet extends HttpServlet {
                 // Update database
                 lectureDAO.updateLectureVideo(lectureId, uploadedPublicId, durationSeconds);
 
-                logger.info("Video upload pipeline completed for lecture {} in {}ms (compress: {}ms, cloudinary: {}ms)",
-                        lectureId, (System.currentTimeMillis() - startUploadTime), compressMs, cloudMs);
+                long totalMs = System.currentTimeMillis() - startUploadTime;
+                double compressedMb = fileToUpload.length() / (1024.0 * 1024.0);
+                logger.info("Video upload pipeline completed for lecture {} in {}s (compress: {}ms, cloudinary: {}ms, size: {} MB)",
+                        lectureId,
+                        String.format(java.util.Locale.US, "%.1f", totalMs / 1000.0),
+                        compressMs, cloudMs,
+                        String.format(java.util.Locale.US, "%.2f", compressedMb));
 
-                resp.sendRedirect(req.getContextPath() + "/admin/courses?manage=" + courseId + "&success=video_uploaded");
+                if (isAjax) {
+                    sendJsonResponse(resp, true,
+                            "Video uploaded successfully! (" +
+                            String.format(java.util.Locale.US, "%.0f", fileMb) + " MB → " +
+                            String.format(java.util.Locale.US, "%.1f", compressedMb) + " MB, " +
+                            String.format(java.util.Locale.US, "%.0f", totalMs / 1000.0) + "s)",
+                            courseId);
+                } else {
+                    resp.sendRedirect(req.getContextPath() + "/admin/courses?manage=" + courseId + "&success=video_uploaded");
+                }
                 return;
             } finally {
                 // Clean up temporary files
@@ -335,10 +376,38 @@ public class AdminCourseServlet extends HttpServlet {
                 }
             }
 
+        } catch (IOException e) {
+            // IOException from VideoCompressionUtil when FFmpeg is missing + file > 100MB
+            logger.error("Video upload failed for lecture {}: {}", lectureId, e.getMessage());
+            if (isAjax) {
+                sendJsonResponse(resp, false, e.getMessage(), courseId);
+            } else {
+                resp.sendRedirect(req.getContextPath() + "/admin/courses?manage=" + courseId + "&err=upload_error");
+            }
         } catch (Exception e) {
             logger.error("Error during video upload for lecture: {}", lectureId, e);
-            resp.sendRedirect(req.getContextPath() + "/admin/courses?manage=" + courseId + "&err=upload_error");
+            String userMsg = e.getMessage();
+            if (userMsg != null && userMsg.contains("File size too large")) {
+                userMsg = "Video file is too large for Cloudinary (100 MB limit). FFmpeg compression is required but may not be available on this server. Please install FFmpeg or upload a smaller video.";
+            }
+            if (isAjax) {
+                sendJsonResponse(resp, false, userMsg != null ? userMsg : "Upload failed. Check server logs.", courseId);
+            } else {
+                resp.sendRedirect(req.getContextPath() + "/admin/courses?manage=" + courseId + "&err=upload_error");
+            }
         }
+    }
+
+    /**
+     * Sends a JSON response for AJAX upload requests.
+     */
+    private void sendJsonResponse(HttpServletResponse resp, boolean success, String message, int courseId)
+            throws IOException {
+        resp.setContentType("application/json");
+        resp.setCharacterEncoding("UTF-8");
+        resp.getWriter().write("{\"success\":" + success + ",\"message\":\"" +
+                message.replace("\\", "\\\\").replace("\"", "\\\"") +
+                "\",\"courseId\":" + courseId + "}");
     }
 
     private String extractFileName(Part part) {

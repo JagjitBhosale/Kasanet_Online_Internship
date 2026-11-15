@@ -1111,9 +1111,9 @@
         <div class="modal-box">
             <div class="modal-header">
                 <h3>Upload Video File to Cloudinary</h3>
-                <button type="button" class="modal-close" onclick="closeModal('uploadModal')">&times;</button>
+                <button type="button" class="modal-close" onclick="closeUploadModal()" id="uploadCloseBtn">&times;</button>
             </div>
-            <form method="POST" action="${pageContext.request.contextPath}/admin/courses" enctype="multipart/form-data" id="uploadForm">
+            <form id="uploadForm" enctype="multipart/form-data">
                 <input type="hidden" name="action" value="uploadVideo">
                 <input type="hidden" name="courseId" value="${course.courseId}">
                 <input type="hidden" name="lectureId" id="uploadLectureId" value="">
@@ -1126,15 +1126,20 @@
                         <label>Select Video File (MP4, WebM, MOV - Max 500MB) *</label>
                         <input type="file" name="videoFile" class="form-control" accept="video/mp4,video/webm,video/quicktime,video/x-matroska" required id="videoFileInput">
                     </div>
+                    <div id="fileSizeInfo" style="display:none; font-size: 12.5px; color: var(--text-muted); margin-top: -8px;">
+                        File size: <strong id="fileSizeText"></strong>
+                    </div>
                     <div class="upload-progress-box" id="uploadProgressBox">
-                        <div style="font-size: 12.5px; font-weight: 700; color: var(--accent);" id="uploadStatusText">Uploading to secure Cloudinary storage...</div>
+                        <div style="font-size: 12.5px; font-weight: 700; color: var(--accent);" id="uploadStatusText">Uploading to server...</div>
                         <div class="upload-bar-track">
                             <div class="upload-bar-fill" id="uploadBarFill"></div>
                         </div>
+                        <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 6px;" id="uploadDetailText"></div>
                     </div>
+                    <div id="uploadResultBox" style="display:none; margin-top: 8px; padding: 12px; border-radius: 8px; font-size: 13px; font-weight: 600;"></div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-outline" onclick="closeModal('uploadModal')">Cancel</button>
+                    <button type="button" class="btn btn-outline" onclick="closeUploadModal()" id="uploadCancelBtn">Cancel</button>
                     <button type="submit" class="btn btn-primary" id="btnStartUpload">
                         <i class="fa-solid fa-cloud-arrow-up"></i> Upload &amp; Link Stream
                     </button>
@@ -1203,18 +1208,193 @@
             document.getElementById('uploadLectureId').value = btn.dataset.lecId;
             document.getElementById('uploadLectureTitle').textContent = btn.dataset.title || '';
             document.getElementById('uploadProgressBox').style.display = 'none';
+            document.getElementById('uploadResultBox').style.display = 'none';
+            document.getElementById('btnStartUpload').disabled = false;
+            document.getElementById('btnStartUpload').innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Upload & Link Stream';
+            document.getElementById('videoFileInput').value = '';
+            document.getElementById('fileSizeInfo').style.display = 'none';
+            document.getElementById('uploadCancelBtn').style.display = '';
+            document.getElementById('uploadCloseBtn').style.display = '';
             document.getElementById('uploadModal').classList.add('active');
         }
 
+        // Show file size when file is selected
+        var videoFileInput = document.getElementById('videoFileInput');
+        if (videoFileInput) {
+            videoFileInput.addEventListener('change', function() {
+                var info = document.getElementById('fileSizeInfo');
+                var text = document.getElementById('fileSizeText');
+                if (this.files && this.files[0]) {
+                    var sizeMb = (this.files[0].size / (1024 * 1024)).toFixed(1);
+                    text.textContent = sizeMb + ' MB';
+                    if (this.files[0].size > 100 * 1024 * 1024) {
+                        text.innerHTML = sizeMb + ' MB <span style="color:#d32f2f;">(will be compressed before upload to Cloudinary)</span>';
+                    }
+                    info.style.display = 'block';
+                } else {
+                    info.style.display = 'none';
+                }
+            });
+        }
+
+        function closeUploadModal() {
+            document.getElementById('uploadModal').classList.remove('active');
+        }
+
+        // AJAX upload with real progress tracking
         var uploadForm = document.getElementById('uploadForm');
         if (uploadForm) {
-            uploadForm.addEventListener('submit', function() {
+            uploadForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                var fileInput = document.getElementById('videoFileInput');
+                if (!fileInput.files || !fileInput.files[0]) {
+                    alert('Please select a video file.');
+                    return;
+                }
+
+                var file = fileInput.files[0];
+                var sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+
                 var progressBox = document.getElementById('uploadProgressBox');
-                var startBtn = document.getElementById('btnStartUpload');
                 var barFill = document.getElementById('uploadBarFill');
-                if (progressBox) progressBox.style.display = 'block';
-                if (startBtn) startBtn.disabled = true;
-                if (barFill) barFill.style.width = '70%';
+                var statusText = document.getElementById('uploadStatusText');
+                var detailText = document.getElementById('uploadDetailText');
+                var startBtn = document.getElementById('btnStartUpload');
+                var cancelBtn = document.getElementById('uploadCancelBtn');
+                var closeBtn = document.getElementById('uploadCloseBtn');
+                var resultBox = document.getElementById('uploadResultBox');
+
+                // Show progress, disable buttons
+                progressBox.style.display = 'block';
+                resultBox.style.display = 'none';
+                startBtn.disabled = true;
+                startBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading...';
+                cancelBtn.style.display = 'none';
+                closeBtn.style.display = 'none';
+                barFill.style.width = '0%';
+                barFill.style.background = 'var(--accent)';
+                statusText.textContent = 'Uploading ' + sizeMb + ' MB to server...';
+                statusText.style.color = 'var(--accent)';
+                detailText.textContent = '';
+
+                var formData = new FormData(uploadForm);
+                var xhr = new XMLHttpRequest();
+                var startTime = Date.now();
+
+                // Track upload progress (browser → server)
+                xhr.upload.addEventListener('progress', function(e) {
+                    if (e.lengthComputable) {
+                        var percent = Math.round((e.loaded / e.total) * 100);
+                        // Upload to server is 0-50%, compression+cloudinary is 50-100%
+                        var displayPercent = Math.round(percent * 0.5);
+                        barFill.style.width = displayPercent + '%';
+
+                        var elapsedSec = (Date.now() - startTime) / 1000;
+                        var uploadedMb = (e.loaded / (1024 * 1024)).toFixed(1);
+                        var speedMbps = elapsedSec > 0 ? (e.loaded / (1024 * 1024) / elapsedSec).toFixed(1) : '—';
+
+                        statusText.textContent = 'Uploading to server... ' + percent + '%';
+                        detailText.textContent = uploadedMb + ' / ' + sizeMb + ' MB • ' + speedMbps + ' MB/s';
+
+                        if (percent >= 100) {
+                            statusText.textContent = 'Upload complete. Server is compressing & uploading to Cloudinary...';
+                            detailText.textContent = 'This may take 30s-3min depending on file size. Please wait.';
+                            barFill.style.width = '55%';
+                            // Animate progress bar slowly from 55% to 90% while waiting
+                            animateWaiting(barFill, statusText);
+                        }
+                    }
+                });
+
+                xhr.addEventListener('load', function() {
+                    clearInterval(window._uploadAnimTimer);
+                    barFill.style.width = '100%';
+
+                    var response;
+                    try {
+                        response = JSON.parse(xhr.responseText);
+                    } catch(ex) {
+                        // Non-JSON response (redirect from non-AJAX fallback)
+                        if (xhr.status >= 200 && xhr.status < 400) {
+                            showResult(true, 'Video uploaded successfully!');
+                        } else {
+                            showResult(false, 'Upload failed. Server returned an unexpected response.');
+                        }
+                        return;
+                    }
+
+                    if (response.success) {
+                        showResult(true, response.message || 'Video uploaded successfully!');
+                    } else {
+                        showResult(false, response.message || 'Upload failed. Check server logs.');
+                    }
+                });
+
+                xhr.addEventListener('error', function() {
+                    clearInterval(window._uploadAnimTimer);
+                    showResult(false, 'Network error. Could not reach the server. Check your connection.');
+                });
+
+                xhr.addEventListener('timeout', function() {
+                    clearInterval(window._uploadAnimTimer);
+                    showResult(false, 'Upload timed out. The video may be too large or the server is busy.');
+                });
+
+                xhr.open('POST', '${pageContext.request.contextPath}/admin/courses');
+                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                xhr.timeout = 600000; // 10 minute timeout
+                xhr.send(formData);
+
+                function showResult(success, message) {
+                    statusText.textContent = success ? 'Upload Complete!' : 'Upload Failed';
+                    statusText.style.color = success ? 'var(--success)' : 'var(--danger)';
+                    barFill.style.background = success ? 'var(--success)' : 'var(--danger)';
+                    detailText.textContent = '';
+
+                    resultBox.style.display = 'block';
+                    resultBox.style.background = success ? '#dcfce7' : '#fee2e2';
+                    resultBox.style.color = success ? '#15803d' : '#b91c1c';
+                    resultBox.style.border = '1px solid ' + (success ? '#bbf7d0' : '#fecaca');
+                    resultBox.innerHTML = (success ? '<i class="fa-solid fa-circle-check"></i> ' : '<i class="fa-solid fa-triangle-exclamation"></i> ') + message;
+
+                    startBtn.disabled = false;
+                    startBtn.innerHTML = success
+                        ? '<i class="fa-solid fa-check"></i> Done'
+                        : '<i class="fa-solid fa-cloud-arrow-up"></i> Retry Upload';
+                    cancelBtn.style.display = '';
+                    closeBtn.style.display = '';
+
+                    if (success) {
+                        cancelBtn.textContent = 'Close';
+                        cancelBtn.onclick = function() {
+                            closeUploadModal();
+                            window.location.reload();
+                        };
+                    }
+                }
+
+                function animateWaiting(bar, label) {
+                    var pct = 55;
+                    var phases = [
+                        {at: 60, text: 'Compressing video with FFmpeg (720p, H.264)...'},
+                        {at: 70, text: 'Compression complete. Uploading to Cloudinary CDN...'},
+                        {at: 80, text: 'Uploading compressed video to Cloudinary...'},
+                        {at: 88, text: 'Finishing up...'}
+                    ];
+                    window._uploadAnimTimer = setInterval(function() {
+                        if (pct < 92) {
+                            pct += 0.3;
+                            bar.style.width = pct + '%';
+                            for (var i = phases.length - 1; i >= 0; i--) {
+                                if (pct >= phases[i].at) {
+                                    label.textContent = phases[i].text;
+                                    break;
+                                }
+                            }
+                        }
+                    }, 1000);
+                }
             });
         }
     </script>
