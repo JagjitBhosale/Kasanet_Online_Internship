@@ -37,4 +37,18 @@ public class HomeDAO {
 
         return stats;
     }
+
+    public int getEnrolledCourseCount(int studentId) throws SQLException {
+        String sql = "SELECT COUNT(DISTINCT course_id) FROM enrollments WHERE user_id = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, studentId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+                throw new SQLException("Course enrollment count query returned no result.");
+            }
+        }
+    }
 }

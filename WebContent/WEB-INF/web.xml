@@ -313,6 +313,15 @@
         <url-pattern>/admin/offer-letter</url-pattern>
     </servlet-mapping>
 
+    <servlet>
+        <servlet-name>AdminEvaluationReportServlet</servlet-name>
+        <servlet-class>com.onlineinternshipin.controller.AdminEvaluationReportServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>AdminEvaluationReportServlet</servlet-name>
+        <url-pattern>/admin/evaluation-report</url-pattern>
+    </servlet-mapping>
+
     <!-- Admin Course & Lecture Management -->
     <servlet>
         <servlet-name>AdminCourseServlet</servlet-name>

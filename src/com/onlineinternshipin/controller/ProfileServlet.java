@@ -22,7 +22,6 @@ public class ProfileServlet extends HttpServlet {
     private AchievementDAO achievementDAO = new AchievementDAO();
     private SkillDAO skillDAO = new SkillDAO();
     private CertificationDAO certificationDAO = new CertificationDAO();
-    private ProjectDAO projectDAO = new ProjectDAO();
     private HackathonDAO hackathonDAO = new HackathonDAO();
     private CompetitionDAO competitionDAO = new CompetitionDAO();
     private EngineeringMarksDAO engineeringMarksDAO = new EngineeringMarksDAO();
@@ -82,19 +81,19 @@ public class ProfileServlet extends HttpServlet {
         // 5. Fetch Certifications
         List<Certification> certificationList = certificationDAO.getCertificationsByUserId(userId);
 
-        // 6. Fetch Projects
-        List<Project> projectList = projectDAO.getProjectsByUserId(userId);
-
-        // 7. Fetch Hackathons & Competitions
+        // 6. Fetch Hackathons & Competitions
         List<Hackathon> hackathonList = hackathonDAO.getHackathonsByUserId(userId);
         List<Competition> competitionList = competitionDAO.getCompetitionsByUserId(userId);
 
-        // 8. Fetch Engineering Year-wise Marks (Optional)
+        // 7. Fetch Engineering Year-wise Marks (Optional)
         List<EngineeringMarks> engineeringMarksList = engineeringMarksDAO.getMarksByUserId(userId);
 
-        // Active tab parameter - exactly 5 sections
+        // Active tab parameter - exactly 4 sections
         String activeTab = req.getParameter("tab");
-        if (activeTab == null || activeTab.trim().isEmpty() || "skills".equalsIgnoreCase(activeTab) || "achievements".equalsIgnoreCase(activeTab)) {
+        if (activeTab == null || activeTab.trim().isEmpty()
+                || "skills".equalsIgnoreCase(activeTab)
+                || "achievements".equalsIgnoreCase(activeTab)
+                || "projects".equalsIgnoreCase(activeTab)) {
             activeTab = "personal";
         }
 
@@ -108,7 +107,6 @@ public class ProfileServlet extends HttpServlet {
         req.setAttribute("softSkills", softSkills);
         req.setAttribute("domainSkills", domainSkills);
         req.setAttribute("certificationList", certificationList);
-        req.setAttribute("projectList", projectList);
         req.setAttribute("hackathonList", hackathonList);
         req.setAttribute("competitionList", competitionList);
         req.setAttribute("activeTab", activeTab);

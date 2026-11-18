@@ -227,7 +227,7 @@
             border: 1px solid #e2e8f0;
         }
 
-        /* Tabs Navigation Bar - Exactly 5 Sections */
+        /* Tabs Navigation Bar - Four Sections */
         .tabs-header {
             display: flex;
             border-bottom: 2px solid #e2e8f0;
@@ -611,13 +611,12 @@
                 <div class="alert-error" role="alert">Please enter a valid date of birth.</div>
             </c:if>
 
-            <!-- Tabs Navigation Bar - Exactly 5 Requested Sections -->
+            <!-- Tabs Navigation Bar - Four Sections -->
             <div class="tabs-header">
                 <a href="${pageContext.request.contextPath}/profile?tab=personal" class="tab-btn ${activeTab == 'personal' ? 'active' : ''}">1. Personal Information</a>
                 <a href="${pageContext.request.contextPath}/profile?tab=education" class="tab-btn ${activeTab == 'education' ? 'active' : ''}">2. Education</a>
                 <a href="${pageContext.request.contextPath}/profile?tab=certifications" class="tab-btn ${activeTab == 'certifications' ? 'active' : ''}">3. Certification</a>
-                <a href="${pageContext.request.contextPath}/profile?tab=projects" class="tab-btn ${activeTab == 'projects' ? 'active' : ''}">4. Projects</a>
-                <a href="${pageContext.request.contextPath}/profile?tab=activities" class="tab-btn ${activeTab == 'activities' ? 'active' : ''}">5. Additional Activities</a>
+                <a href="${pageContext.request.contextPath}/profile?tab=activities" class="tab-btn ${activeTab == 'activities' ? 'active' : ''}">4. Additional Activities</a>
             </div>
 
             <!-- =========================================================
@@ -1091,7 +1090,7 @@
                     </div>
                     <div class="btn-group">
                         <button type="submit" class="btn-save">+ Add Certification</button>
-                        <a href="${pageContext.request.contextPath}/profile?tab=projects" class="btn-next">Next: Projects &rarr;</a>
+                        <a href="${pageContext.request.contextPath}/profile?tab=activities" class="btn-next">Next: Additional Activities &rarr;</a>
                     </div>
                 </form>
 
@@ -1135,102 +1134,7 @@
             </c:if>
 
             <!-- =========================================================
-                 SECTION 4: PROJECTS (Optional)
-                 ========================================================= -->
-            <c:if test="${activeTab == 'projects'}">
-                <h3 class="form-section-title" style="margin-top:0;">Projects Portfolio <span class="sub-badge">Optional</span></h3>
-                <form action="${pageContext.request.contextPath}/projects" method="post" style="margin-bottom: 24px;">
-                    <input type="hidden" name="action" value="add">
-                    <div class="form-grid-2">
-                        <div class="form-group">
-                            <label class="form-label">Project Name *</label>
-                            <input type="text" name="projectName" class="form-input" placeholder="e.g. Student Internship Portal" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Technologies Used</label>
-                            <input type="text" name="technologiesUsed" class="form-input" placeholder="e.g. Java, JSP, Servlets, MySQL">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Your Role</label>
-                            <input type="text" name="role" class="form-input" placeholder="e.g. Full Stack Developer">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Project Type</label>
-                            <select name="projectType" class="form-select">
-                                <option value="Academic">Academic</option>
-                                <option value="Personal">Personal</option>
-                                <option value="Professional">Professional</option>
-                                <option value="Open Source">Open Source</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Team Size</label>
-                            <input type="number" name="teamSize" class="form-input" value="1" min="1">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Start Date</label>
-                            <input type="date" name="startDate" class="form-input">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">End Date</label>
-                            <input type="date" name="endDate" class="form-input">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">GitHub URL</label>
-                            <input type="url" name="githubUrl" class="form-input" placeholder="https://github.com/...">
-                        </div>
-                        <div class="form-group" style="grid-column: 1 / -1;">
-                            <label class="form-label">Project Description</label>
-                            <textarea name="description" class="form-textarea" rows="3" placeholder="Briefly summarize project features and achievements..."></textarea>
-                        </div>
-                    </div>
-                    <div class="btn-group">
-                        <button type="submit" class="btn-save">+ Add Project</button>
-                        <a href="${pageContext.request.contextPath}/profile?tab=activities" class="btn-next">Next: Additional Activities &rarr;</a>
-                    </div>
-                </form>
-
-                <c:if test="${not empty projectList}">
-                    <h4 style="margin-top: 24px; color: #1e293b; font-size: 0.95rem; font-weight: 700;">Your Saved Projects</h4>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Project Name</th>
-                                <th>Tech Stack</th>
-                                <th>Role</th>
-                                <th>Type</th>
-                                <th>Link</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <c:forEach items="${projectList}" var="p">
-                                <tr>
-                                    <td><strong>${p.projectName}</strong></td>
-                                    <td>${p.technologiesUsed}</td>
-                                    <td>${p.role}</td>
-                                    <td>${p.projectType}</td>
-                                    <td>
-                                        <c:if test="${not empty p.githubUrl}">
-                                            <a href="${p.githubUrl}" target="_blank" style="color:#2563eb;">GitHub</a>
-                                        </c:if>
-                                    </td>
-                                    <td>
-                                        <form action="${pageContext.request.contextPath}/projects" method="post" style="display:inline;">
-                                            <input type="hidden" name="action" value="delete">
-                                            <input type="hidden" name="projectId" value="${p.projectId}">
-                                            <button type="submit" class="btn-danger-sm" onclick="return confirm('Delete this project?');">Delete</button>
-                                        </form>
-                                    </td>
-                                </tr>
-                            </c:forEach>
-                        </tbody>
-                    </table>
-                </c:if>
-            </c:if>
-
-            <!-- =========================================================
-                 SECTION 5: ADDITIONAL ACTIVITIES (Optional)
+                 SECTION 4: ADDITIONAL ACTIVITIES (Optional)
                  ========================================================= -->
             <c:if test="${activeTab == 'activities'}">
                 <!-- Part A: Hackathons -->

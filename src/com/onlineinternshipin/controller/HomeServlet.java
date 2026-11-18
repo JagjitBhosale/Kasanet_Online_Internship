@@ -58,6 +58,12 @@ public class HomeServlet extends HttpServlet {
                     + userId, exception);
             throw new ServletException("Unable to load student dashboard statistics.", exception);
         }
+        Integer courseCount = null;
+        try {
+            courseCount = homeDAO.getEnrolledCourseCount(userId);
+        } catch (SQLException exception) {
+            LOGGER.log(Level.WARNING, "Unable to load enrolled course count for studentId=" + userId, exception);
+        }
         stats.setStudentName(user.getFullName());
         stats.setProfileCompletion(completion);
         StudentProfile profile = profileDAO.getProfileByUserId(userId);
@@ -74,6 +80,7 @@ public class HomeServlet extends HttpServlet {
         }
 
         req.setAttribute("stats", stats != null ? stats : new HomeStats());
+        req.setAttribute("courseCount", courseCount);
         req.setAttribute("user", user);
         req.setAttribute("profile", profile);
 

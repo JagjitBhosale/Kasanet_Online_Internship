@@ -632,7 +632,7 @@
                             placeholder="you@example.com"
                             autocomplete="email"
                             required
-                            value="${not empty param.email ? fn:escapeXml(param.email) : ''}"
+                            value="${fn:escapeXml(not empty requestScope.enteredEmail ? requestScope.enteredEmail : param.email)}"
                         />
                     </div>
                     <span class="field-error" id="emailError">Please enter a valid email address.</span>
@@ -691,13 +691,13 @@
                         Login As <span class="required">*</span>
                     </label>
                     <select id="role" name="role" class="form-control" required>
-                        <option value="" disabled selected>— Select your role —</option>
+                        <option value="" disabled ${empty requestScope.enteredRole and empty param.role ? 'selected' : ''}>— Select your role —</option>
                         <option value="student"
-                            ${param.role == 'student' ? 'selected' : ''}>
+                            ${requestScope.enteredRole == 'student' or param.role == 'student' ? 'selected' : ''}>
                             Student
                         </option>
                         <option value="admin"
-                            ${param.role == 'admin' ? 'selected' : ''}>
+                            ${requestScope.enteredRole == 'admin' or param.role == 'admin' ? 'selected' : ''}>
                             Admin
                         </option>
                     </select>

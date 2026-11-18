@@ -1,6 +1,5 @@
-﻿<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
-<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 <%
     String loginSuccessParam = request.getParameter("loginSuccess");
@@ -985,10 +984,10 @@
                 </a>
             </li>
             <li class="sidebar-menu-item">
-                <a href="javascript:void(0)" class="sidebar-link" id="tabNavCerts" onclick="switchAdminTab('certificates')">
+                <a href="${pageContext.request.contextPath}/admin/evaluation-report" class="sidebar-link">
                     <span class="sidebar-link-content">
-                        <span class="sidebar-link-icon">📜</span>
-                        <span>Global Certification</span>
+                        <span class="sidebar-link-icon">📋</span>
+                        <span>Internship Evaluation Report</span>
                     </span>
                 </a>
             </li>
@@ -997,14 +996,6 @@
                     <span class="sidebar-link-content">
                         <span class="sidebar-link-icon">📄</span>
                         <span>Certification</span>
-                    </span>
-                </a>
-            </li>
-            <li class="sidebar-menu-item">
-                <a href="javascript:void(0)" class="sidebar-link" id="tabNavProjects" onclick="switchAdminTab('projects')">
-                    <span class="sidebar-link-content">
-                        <span class="sidebar-link-icon">📁</span>
-                        <span>Project</span>
                     </span>
                 </a>
             </li>
@@ -1246,247 +1237,6 @@
                 </div>
             </div>
 
-            <!-- ================= GLOBAL CERTIFICATION TAB PANE ================= -->
-            <div id="sectionCertificates" class="admin-tab-pane" style="display:none;">
-                <!-- Page Title & Cert Count -->
-                <div class="content-header">
-                    <h1 class="page-title">Global Certification</h1>
-                    <div class="student-counter" style="background:#e0f2fe; border-color:#bae6fd; color:#0369a1;">
-                        No Of Global Certifications: <c:out value="${platformCertificateCount}"/>
-                    </div>
-                </div>
-
-                <div class="table-controls-bar" id="globalCertificationControls">
-                    <div class="controls-left">
-                        <button type="button" class="btn-export-excel" onclick="exportGlobalCertsToExcel()">
-                            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/></svg>
-                            Export to EXCEL
-                        </button>
-                    </div>
-                </div>
-
-                <div class="table-card" id="globalCertificationTable">
-                    <div class="table-responsive">
-                        <table class="student-table" id="globalCertTable">
-                            <thead>
-                                <tr>
-                                    <th class="col-srno">Sr.No</th>
-                                    <th>Student Name</th>
-                                    <th>Student Email</th>
-                                    <th>Exam</th>
-                                    <th>Score</th>
-                                    <th>Date Achieved</th>
-                                </tr>
-                            </thead>
-                            <tbody id="globalCertTableBody">
-                                <c:choose>
-                                    <c:when test="${not empty platformCertificateList}">
-                                        <c:forEach items="${platformCertificateList}" var="platformCertificate" varStatus="certificateStatus">
-                                            <tr>
-                                                <td class="col-srno"><c:out value="${certificateStatus.count}"/></td>
-                                                <td class="student-name"><c:out value="${platformCertificate.studentName}"/></td>
-                                                <td class="email-cell"><c:out value="${platformCertificate.studentEmail}"/></td>
-                                                <td><c:out value="${platformCertificate.examName}"/></td>
-                                                <td><fmt:formatNumber value="${platformCertificate.scoreObtained}" minFractionDigits="0" maxFractionDigits="2" groupingUsed="false"/>/1000</td>
-                                                <td><c:out value="${platformCertificate.achievementDate}"/></td>
-                                            </tr>
-                                        </c:forEach>
-                                    </c:when>
-                                    <c:otherwise>
-                                        <tr><td colspan="6" class="empty-row-td">No global certification results have been recorded.</td></tr>
-                                    </c:otherwise>
-                                </c:choose>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="content-header" id="additionalCertificateHeader">
-                    <h2 class="page-title">Additional Certificate</h2>
-                    <div class="student-counter" style="background:#e0f2fe; border-color:#bae6fd; color:#0369a1;">
-                        No Of Additional Certificates: <span id="certCountDisplay">${certCount != null ? certCount : 0}</span>
-                    </div>
-                </div>
-                <!-- Table Controls Bar -->
-                <div class="table-controls-bar" id="additionalCertificateControls">
-                    <div class="controls-left">
-                        <button type="button" class="btn-export-excel" onclick="exportCertsToExcel()">
-                            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/></svg>
-                            Export to EXCEL
-                        </button>
-                        <div class="rows-select-wrapper">
-                            <span>Show</span>
-                            <select id="certRowsPerPageSelect" class="rows-select" onchange="changeCertRowsPerPage()">
-                                <option value="5">5</option>
-                                <option value="10" selected>10</option>
-                                <option value="25">25</option>
-                                <option value="50">50</option>
-                                <option value="100">100</option>
-                            </select>
-                            <span>rows</span>
-                        </div>
-                    </div>
-
-                    <div class="controls-right">
-                        <label for="certSearchInput" class="search-label">Search:</label>
-                        <input type="text" id="certSearchInput" class="search-input-field" placeholder="Search certificates..." oninput="handleCertSearch()">
-                    </div>
-                </div>
-
-                <!-- Certificates Data Table -->
-                <div class="table-card" id="additionalCertificateTable">
-                    <div class="table-responsive">
-                        <table class="student-table" id="certsTable">
-                            <thead>
-                                <tr>
-                                    <th class="col-srno">Sr.No</th>
-                                    <th>Student Name</th>
-                                    <th>Student Email</th>
-                                    <th>Certificate Title</th>
-                                    <th>Provider / Issuer</th>
-                                    <th>Technology</th>
-                                    <th>Issue Date</th>
-                                    <th>Credential ID / Link</th>
-                                    <th style="text-align: center; width: 90px;">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="certsTableBody">
-                                <c:choose>
-                                    <c:when test="${not empty certList}">
-                                        <c:forEach items="${certList}" var="c" varStatus="cStatus">
-                                            <tr data-cert-id="${c.certId}"
-                                                data-student-name="${c.studentName}"
-                                                data-student-email="${c.studentEmail}"
-                                                data-cert-name="${c.certName}"
-                                                data-provider="${c.provider}"
-                                                data-tech="${c.technology}">
-                                                <td class="col-srno">${cStatus.count}</td>
-                                                <td class="student-name">${c.studentName}</td>
-                                                <td class="email-cell">${c.studentEmail}</td>
-                                                <td style="font-weight: 600;">${c.certName}</td>
-                                                <td>${not empty c.provider ? c.provider : '-'}</td>
-                                                <td>
-                                                    <span class="branch-badge">
-                                                        ${not empty c.technology ? c.technology : 'General'}
-                                                    </span>
-                                                </td>
-                                                <td>${not empty c.issueDate ? c.issueDate : '-'}</td>
-                                                <td>
-                                                    <c:choose>
-                                                        <c:when test="${not empty c.credentialUrl}">
-                                                            <a href="${c.credentialUrl}" target="_blank" style="color:#2563eb; text-decoration:underline; font-weight:500;">
-                                                                🔗 View Link
-                                                            </a>
-                                                        </c:when>
-                                                        <c:when test="${not empty c.certIdNumber}">
-                                                            <span style="font-family:monospace; font-size:0.84rem; background:#f1f5f9; padding:2px 6px; border-radius:3px;">
-                                                                ${c.certIdNumber}
-                                                            </span>
-                                                        </c:when>
-                                                        <c:otherwise>-</c:otherwise>
-                                                    </c:choose>
-                                                </td>
-                                                <td style="text-align: center;">
-                                                    <button type="button" class="btn-row-delete" onclick="confirmDeleteCert(${c.certId}, '${c.certName}', '${c.studentName}')" title="Delete Certificate Record">
-                                                        🗑 Delete
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        </c:forEach>
-                                    </c:when>
-                                    <c:otherwise>
-                                        <tr id="noCertDataRow">
-                                            <td colspan="9" class="empty-row-td">
-                                                No student certificate records found.
-                                            </td>
-                                        </tr>
-                                    </c:otherwise>
-                                </c:choose>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Table Footer: Showing X to Y of Z entries & Pagination -->
-                <div class="table-footer" id="additionalCertificateFooter">
-                    <div class="entries-info" id="certEntriesInfo">
-                        Showing 0 to 0 of 0 entries
-                    </div>
-                    <div class="pagination-container" id="certPaginationControls"></div>
-                </div>
-
-            </div>
-
-            <div id="sectionProjectReports" class="admin-tab-pane" style="display:none;">
-                <div class="content-header">
-                    <h1 class="page-title">Student Project Reports</h1>
-                    <div class="student-counter" style="background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8;">
-                        No Of Reports: <c:out value="${platformProjectReportCount}"/>
-                    </div>
-                </div>
-                <c:choose>
-                    <c:when test="${not empty platformProjectReportsByStudent}">
-                        <div class="project-student-list">
-                            <c:forEach items="${platformProjectReportsByStudent}" var="studentReports">
-                                <details class="project-student-card">
-                                    <summary class="project-student-summary">
-                                        <span class="project-student-identity">
-                                            <strong class="project-student-name"><c:out value="${studentReports.value[0].studentName}"/></strong>
-                                            <span class="project-student-contact"><c:out value="${studentReports.value[0].studentEmail}"/></span>
-                                            <c:if test="${not empty studentReports.value[0].studentMobile}">
-                                                <span class="project-student-contact"><c:out value="${studentReports.value[0].studentMobile}"/></span>
-                                            </c:if>
-                                        </span>
-                                        <span class="project-student-actions">
-                                            <span class="project-count-badge">
-                                                <c:out value="${fn:length(studentReports.value)}"/> project<c:if test="${fn:length(studentReports.value) != 1}">s</c:if>
-                                            </span>
-                                            <span class="project-student-toggle" aria-hidden="true"></span>
-                                        </span>
-                                    </summary>
-                                    <div class="project-student-reports">
-                                        <c:forEach items="${studentReports.value}" var="projectReport">
-                                            <article class="project-report-card">
-                                                <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:start;">
-                                                    <h2 style="margin:0;color:#172554;font-size:1.1rem;"><c:out value="${projectReport.projectName}"/></h2>
-                                                </div>
-                                                <p style="margin:12px 0;color:#334155;line-height:1.6;white-space:pre-wrap;"><c:out value="${projectReport.scopeDetails}"/></p>
-                                                <details style="margin-top:14px;padding:12px;border:1px solid #e1e8f3;border-radius:8px;background:#fff;">
-                                                    <summary style="color:#1d4ed8;cursor:pointer;font-weight:700;">View all project details</summary>
-                                                    <div class="project-report-details-grid">
-                                                        <c:if test="${not empty projectReport.projectDomain}"><div class="project-report-fact"><strong>Domain</strong><c:out value="${projectReport.projectDomain}"/></div></c:if>
-                                                        <c:if test="${not empty projectReport.projectTechnology}"><div class="project-report-fact"><strong>Technology</strong><c:out value="${projectReport.projectTechnology}"/></div></c:if>
-                                                        <c:if test="${not empty projectReport.projectApplication}"><div class="project-report-fact"><strong>Application</strong><c:out value="${projectReport.projectApplication}"/></div></c:if>
-                                                        <c:if test="${not empty projectReport.projectDuration}"><div class="project-report-fact"><strong>Duration</strong><c:out value="${projectReport.projectDuration}"/></div></c:if>
-                                                        <c:if test="${not empty projectReport.projectModel}"><div class="project-report-fact"><strong>Model</strong><c:out value="${projectReport.projectModel}"/></div></c:if>
-                                                        <c:if test="${not empty projectReport.projectCost}"><div class="project-report-fact"><strong>Estimated project cost</strong><c:out value="${projectReport.projectCost}"/></div></c:if>
-                                                        <div class="project-report-fact"><strong>Issues found</strong><c:out value="${projectReport.issuesFound}"/></div>
-                                                        <c:if test="${not empty projectReport.testingType}"><div class="project-report-fact"><strong>Testing type</strong><c:out value="${projectReport.testingType}"/></div></c:if>
-                                                        <c:if test="${not empty projectReport.testingDuration}"><div class="project-report-fact"><strong>Testing duration</strong><c:out value="${projectReport.testingDuration}"/></div></c:if>
-                                                        <c:if test="${not empty projectReport.requirementGatheringTime}"><div class="project-report-fact"><strong>Requirement gathering</strong><c:out value="${projectReport.requirementGatheringTime}"/></div></c:if>
-                                                        <c:if test="${not empty projectReport.projectAnalysisTime}"><div class="project-report-fact"><strong>Data analysis</strong><c:out value="${projectReport.projectAnalysisTime}"/></div></c:if>
-                                                        <c:if test="${not empty projectReport.projectDesigningTime}"><div class="project-report-fact"><strong>Data cleaning</strong><c:out value="${projectReport.projectDesigningTime}"/></div></c:if>
-                                                        <c:if test="${not empty projectReport.projectCodingTime}"><div class="project-report-fact"><strong>Data modeling</strong><c:out value="${projectReport.projectCodingTime}"/></div></c:if>
-                                                        <c:if test="${not empty projectReport.projectTestingTime}"><div class="project-report-fact"><strong>Data visualization</strong><c:out value="${projectReport.projectTestingTime}"/></div></c:if>
-                                                        <c:if test="${not empty projectReport.knowledgeRequirement}"><div class="project-report-fact"><strong>Requirement learning</strong><c:out value="${projectReport.knowledgeRequirement}"/></div></c:if>
-                                                        <c:if test="${not empty projectReport.knowledgeAnalysis}"><div class="project-report-fact"><strong>Analysis learning</strong><c:out value="${projectReport.knowledgeAnalysis}"/></div></c:if>
-                                                        <c:if test="${not empty projectReport.knowledgeDesigning}"><div class="project-report-fact"><strong>Design learning</strong><c:out value="${projectReport.knowledgeDesigning}"/></div></c:if>
-                                                        <c:if test="${not empty projectReport.knowledgeCoding}"><div class="project-report-fact"><strong>Coding learning</strong><c:out value="${projectReport.knowledgeCoding}"/></div></c:if>
-                                                        <c:if test="${not empty projectReport.knowledgeTesting}"><div class="project-report-fact"><strong>Testing learning</strong><c:out value="${projectReport.knowledgeTesting}"/></div></c:if>
-                                                        <c:if test="${not empty projectReport.knowledgePostImplementation}"><div class="project-report-fact"><strong>Post-implementation learning</strong><c:out value="${projectReport.knowledgePostImplementation}"/></div></c:if>
-                                                    </div>
-                                                </details>
-                                            </article>
-                                        </c:forEach>
-                                    </div>
-                                </details>
-                            </c:forEach>
-                        </div>
-                    </c:when>
-                    <c:otherwise><p class="empty-row-td">No student project reports have been submitted yet.</p></c:otherwise>
-                </c:choose>
-            </div>
-
         </main>
     </div>
 
@@ -1495,11 +1245,6 @@
         <input type="hidden" name="action" value="delete">
         <input type="hidden" name="userId" id="deleteFormUserId" value="">
         <input type="hidden" name="userIdsCsv" id="deleteFormUserIdsCsv" value="">
-    </form>
-
-    <form id="hiddenCertDeleteForm" method="POST" action="${pageContext.request.contextPath}/admin" style="display:none;">
-        <input type="hidden" name="action" value="deleteCert">
-        <input type="hidden" name="certId" id="deleteCertFormId" value="">
     </form>
 
     <!-- Toast Container -->
@@ -1514,20 +1259,13 @@
         var rowsPerPage = 10;
         var selectedUserIds = new Set();
 
-        // State variables for Certificates table
-        var allCertRows = [];
-        var filteredCertRows = [];
-        var certCurrentPage = 1;
-        var certRowsPerPage = 10;
-
         document.addEventListener('DOMContentLoaded', function() {
             initTableData();
-            initCertTableData();
 
             // Restore the selected admin section from the URL.
             var urlParams = new URLSearchParams(window.location.search);
             var activeTab = urlParams.get('tab');
-            if (activeTab === 'certificates' || activeTab === 'projects' || activeTab === 'offer-letter') {
+            if (activeTab === 'offer-letter') {
                 switchAdminTab(activeTab);
             }
 
@@ -1548,15 +1286,11 @@
         function switchAdminTab(tabName) {
             var sections = {
                 students: document.getElementById('sectionStudents'),
-                certificates: document.getElementById('sectionCertificates'),
-                'offer-letter': document.getElementById('sectionOfferLetter'),
-                projects: document.getElementById('sectionProjectReports')
+                'offer-letter': document.getElementById('sectionOfferLetter')
             };
             var navigation = {
                 students: document.getElementById('tabNavStudents'),
-                certificates: document.getElementById('tabNavCerts'),
-                'offer-letter': document.getElementById('tabNavOfferLetter'),
-                projects: document.getElementById('tabNavProjects')
+                'offer-letter': document.getElementById('tabNavOfferLetter')
             };
             if (!sections[tabName]) tabName = 'students';
             Object.keys(sections).forEach(function (name) {
@@ -1566,9 +1300,7 @@
             var breadcrumb = document.getElementById('topbarBreadcrumb');
             var labels = {
                 students: 'Student Details',
-                certificates: 'Global Certification',
-                'offer-letter': 'Certification / Student Offer Letter',
-                projects: 'Student Project Reports'
+                'offer-letter': 'Certification / Student Offer Letter'
             };
             if (breadcrumb) breadcrumb.textContent = 'Online Internship Administration / ' + labels[tabName];
             if (window.history && window.history.replaceState) {
@@ -1954,256 +1686,6 @@
             var timestamp = new Date().toISOString().slice(0, 10);
             link.setAttribute("href", url);
             link.setAttribute("download", "Industrial_Training_Students_" + timestamp + ".csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-        }
-
-        function exportGlobalCertsToExcel() {
-            var tbody = document.getElementById('globalCertTableBody');
-            var rowsToExport = tbody ? Array.from(tbody.querySelectorAll('tr')).filter(function(row) {
-                return !row.querySelector('.empty-row-td');
-            }) : [];
-
-            if (rowsToExport.length === 0) {
-                window.alert('No global certification records available to export.');
-                return;
-            }
-
-            window.alert('Exporting ' + rowsToExport.length + ' certificate records to Excel spreadsheet...');
-
-            var headers = ["Sr.No", "Student Name", "Student Email", "Exam", "Score", "Date Achieved"];
-            var csvContent = "\uFEFF";
-            csvContent += headers.map(escapeCsv).join(",") + "\r\n";
-
-            rowsToExport.forEach(function(row, index) {
-                var values = Array.from(row.cells).map(function(cell) {
-                    return cell.textContent.trim();
-                });
-                values[0] = index + 1;
-                csvContent += values.map(escapeCsv).join(",") + "\r\n";
-            });
-
-            var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            var url = URL.createObjectURL(blob);
-            var link = document.createElement("a");
-            var timestamp = new Date().toISOString().slice(0, 10);
-            link.setAttribute("href", url);
-            link.setAttribute("download", "Global_Certifications_" + timestamp + ".csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-        }
-
-        // ================= CERTIFICATES TABLE LOGIC =================
-        function initCertTableData() {
-            var tbody = document.getElementById('certsTableBody');
-            if (!tbody) return;
-            var trs = tbody.querySelectorAll('tr:not(#noCertDataRow)');
-            allCertRows = Array.from(trs);
-            filteredCertRows = allCertRows.slice();
-            certCurrentPage = 1;
-            renderCertTablePage();
-        }
-
-        function handleCertSearch() {
-            var query = document.getElementById('certSearchInput').value.trim().toLowerCase();
-
-            if (!query) {
-                filteredCertRows = allCertRows.slice();
-            } else {
-                filteredCertRows = allCertRows.filter(function(row) {
-                    var text = (row.dataset.studentName || '') + ' ' +
-                               (row.dataset.studentEmail || '') + ' ' +
-                               (row.dataset.certName || '') + ' ' +
-                               (row.dataset.provider || '') + ' ' +
-                               (row.dataset.tech || '');
-                    return text.toLowerCase().indexOf(query) !== -1;
-                });
-            }
-
-            certCurrentPage = 1;
-            renderCertTablePage();
-        }
-
-        function changeCertRowsPerPage() {
-            var select = document.getElementById('certRowsPerPageSelect');
-            certRowsPerPage = parseInt(select.value, 10) || 10;
-            certCurrentPage = 1;
-            renderCertTablePage();
-        }
-
-        function renderCertTablePage() {
-            var tbody = document.getElementById('certsTableBody');
-            var noCertRow = document.getElementById('noCertDataRow');
-            var totalEntries = filteredCertRows.length;
-            var totalPages = Math.ceil(totalEntries / certRowsPerPage) || 1;
-
-            if (certCurrentPage > totalPages) certCurrentPage = totalPages;
-            if (certCurrentPage < 1) certCurrentPage = 1;
-
-            allCertRows.forEach(function(row) {
-                row.style.display = 'none';
-            });
-
-            if (totalEntries === 0) {
-                if (!noCertRow) {
-                    noCertRow = document.createElement('tr');
-                    noCertRow.id = 'noCertDataRow';
-                    noCertRow.innerHTML = '<td colspan="9" class="empty-row-td">No matching certificate records found.</td>';
-                    tbody.appendChild(noCertRow);
-                }
-                noCertRow.style.display = '';
-                document.getElementById('certEntriesInfo').textContent = 'Showing 0 to 0 of 0 entries';
-                renderCertPagination(0, 0);
-                return;
-            } else {
-                if (noCertRow) noCertRow.style.display = 'none';
-            }
-
-            var startIndex = (certCurrentPage - 1) * certRowsPerPage;
-            var endIndex = Math.min(startIndex + certRowsPerPage, totalEntries);
-
-            for (var i = startIndex; i < endIndex; i++) {
-                filteredCertRows[i].style.display = '';
-            }
-
-            document.getElementById('certEntriesInfo').textContent =
-                'Showing ' + (startIndex + 1) + ' to ' + endIndex + ' of ' + totalEntries + ' entries';
-
-            renderCertPagination(totalPages, certCurrentPage);
-        }
-
-        function renderCertPagination(totalPages, activePage) {
-            var container = document.getElementById('certPaginationControls');
-            container.innerHTML = '';
-
-            var prevBtn = document.createElement('button');
-            prevBtn.className = 'page-btn';
-            prevBtn.textContent = 'Previous';
-            prevBtn.disabled = (certCurrentPage === 1 || totalPages === 0);
-            prevBtn.onclick = function() {
-                if (certCurrentPage > 1) {
-                    certCurrentPage--;
-                    renderCertTablePage();
-                }
-            };
-            container.appendChild(prevBtn);
-
-            var maxButtons = 5;
-            var startPage = Math.max(1, certCurrentPage - Math.floor(maxButtons / 2));
-            var endPage = Math.min(totalPages, startPage + maxButtons - 1);
-            if (endPage - startPage + 1 < maxButtons) {
-                startPage = Math.max(1, endPage - maxButtons + 1);
-            }
-
-            for (var p = startPage; p <= endPage; p++) {
-                (function(pageNumber) {
-                    var pageBtn = document.createElement('button');
-                    pageBtn.className = 'page-btn' + (pageNumber === certCurrentPage ? ' active' : '');
-                    pageBtn.textContent = pageNumber;
-                    pageBtn.onclick = function() {
-                        certCurrentPage = pageNumber;
-                        renderCertTablePage();
-                    };
-                    container.appendChild(pageBtn);
-                })(p);
-            }
-
-            var nextBtn = document.createElement('button');
-            nextBtn.className = 'page-btn';
-            nextBtn.textContent = 'Next';
-            nextBtn.disabled = (certCurrentPage === totalPages || totalPages === 0);
-            nextBtn.onclick = function() {
-                if (certCurrentPage < totalPages) {
-                    certCurrentPage++;
-                    renderCertTablePage();
-                }
-            };
-            container.appendChild(nextBtn);
-        }
-
-        function confirmDeleteCert(certId, certName, studentName) {
-            var confirmed = window.confirm('Are you sure you want to delete the certificate "' + certName + '" for student ' + studentName + '?\n\nThis action cannot be undone.');
-            if (confirmed) {
-                executeDeleteCertAjax(certId);
-            }
-        }
-
-        function executeDeleteCertAjax(certId) {
-            var formData = new URLSearchParams();
-            formData.append('action', 'deleteCert');
-            formData.append('certId', certId);
-
-            fetch('${pageContext.request.contextPath}/admin', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
-                },
-                body: formData.toString()
-            })
-            .then(function(res) { return res.json(); })
-            .then(function(data) {
-                if (data.success) {
-                    window.alert(data.message || 'Certificate record deleted successfully.');
-                    allCertRows = allCertRows.filter(function(row) {
-                        if (row.dataset.certId == certId) {
-                            if (row.parentNode) row.parentNode.removeChild(row);
-                            return false;
-                        }
-                        return true;
-                    });
-                    var countDisplay = document.getElementById('certCountDisplay');
-                    if (countDisplay) {
-                        countDisplay.textContent = allCertRows.length;
-                    }
-                    handleCertSearch();
-                } else {
-                    window.alert(data.message || 'Failed to delete certificate.');
-                }
-            })
-            .catch(function(err) {
-                var form = document.getElementById('hiddenCertDeleteForm');
-                document.getElementById('deleteCertFormId').value = certId;
-                form.submit();
-            });
-        }
-
-        function exportCertsToExcel() {
-            var rowsToExport = filteredCertRows;
-
-            if (rowsToExport.length === 0) {
-                window.alert('No certificate records available to export.');
-                return;
-            }
-
-            window.alert('Exporting ' + rowsToExport.length + ' certificate records to Excel spreadsheet...');
-
-            var headers = ["Sr.No", "Student Name", "Student Email", "Certificate Title", "Provider", "Technology"];
-            var csvContent = "\uFEFF";
-            csvContent += headers.map(escapeCsv).join(",") + "\r\n";
-
-            rowsToExport.forEach(function(row, idx) {
-                var sName = row.dataset.studentName || "";
-                var sEmail = row.dataset.studentEmail || "";
-                var cName = row.dataset.certName || "";
-                var prov = row.dataset.provider || "";
-                var tech = row.dataset.tech || "";
-
-                var line = [idx + 1, sName, sEmail, cName, prov, tech];
-                csvContent += line.map(escapeCsv).join(",") + "\r\n";
-            });
-
-            var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            var url = URL.createObjectURL(blob);
-            var link = document.createElement("a");
-            var timestamp = new Date().toISOString().slice(0, 10);
-            link.setAttribute("href", url);
-            link.setAttribute("download", "Student_Certificates_" + timestamp + ".csv");
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);

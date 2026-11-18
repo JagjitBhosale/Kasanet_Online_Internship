@@ -1,10 +1,6 @@
 package com.onlineinternshipin.controller;
 
 import com.onlineinternshipin.dao.UserDAO;
-import com.onlineinternshipin.dao.PlatformCertificateDAO;
-import com.onlineinternshipin.dao.PlatformProjectReportDAO;
-import com.onlineinternshipin.model.PlatformCertificate;
-import com.onlineinternshipin.model.PlatformProjectReport;
 import com.onlineinternshipin.model.User;
 import com.onlineinternshipin.utility.SessionUtil;
 
@@ -14,10 +10,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * AdminServlet - Simple monitoring interface for registered users and accounts.
@@ -28,8 +21,6 @@ public class AdminServlet extends HttpServlet {
     private static final long serialVersionUID = 1L;
     private final UserDAO userDAO = new UserDAO();
     private final com.onlineinternshipin.dao.CertificationDAO certDAO = new com.onlineinternshipin.dao.CertificationDAO();
-    private final PlatformCertificateDAO platformCertificateDAO = new PlatformCertificateDAO();
-    private final PlatformProjectReportDAO platformProjectReportDAO = new PlatformProjectReportDAO();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
@@ -56,32 +47,8 @@ public class AdminServlet extends HttpServlet {
             }
         }
         int studentCount = (studentList != null) ? studentList.size() : 0;
-        List<com.onlineinternshipin.model.Certification> certList = certDAO.getAllCertificationsWithStudent();
-        List<PlatformCertificate> platformCertificateList;
-        try {
-            platformCertificateList = platformCertificateDAO.getAllWithStudent();
-        } catch (Exception e) {
-            platformCertificateList = java.util.Collections.emptyList();
-        }
-        List<PlatformProjectReport> platformProjectReportList;
-        try {
-            platformProjectReportList = platformProjectReportDAO.getAllWithStudent();
-        } catch (Exception e) {
-            platformProjectReportList = java.util.Collections.emptyList();
-        }
-        Map<Integer, List<PlatformProjectReport>> projectReportsByStudent = new LinkedHashMap<>();
-        for (PlatformProjectReport report : platformProjectReportList) {
-            projectReportsByStudent.computeIfAbsent(report.getUserId(), key -> new ArrayList<>()).add(report);
-        }
 
         req.setAttribute("userList", studentList != null ? studentList : java.util.Collections.emptyList());
-        req.setAttribute("certList", certList != null ? certList : java.util.Collections.emptyList());
-        req.setAttribute("certCount", certList != null ? certList.size() : 0);
-        req.setAttribute("platformCertificateList", platformCertificateList);
-        req.setAttribute("platformCertificateCount", platformCertificateList.size());
-        req.setAttribute("platformProjectReportList", platformProjectReportList);
-        req.setAttribute("platformProjectReportsByStudent", projectReportsByStudent.entrySet());
-        req.setAttribute("platformProjectReportCount", platformProjectReportList.size());
         req.setAttribute("totalUsers", allUsers != null ? allUsers.size() : 0);
         req.setAttribute("studentCount", studentCount);
         req.setAttribute("adminCount", adminCount);

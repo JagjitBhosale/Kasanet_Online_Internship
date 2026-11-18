@@ -644,10 +644,10 @@
                 </a>
             </li>
             <li class="sidebar-menu-item">
-                <a href="${pageContext.request.contextPath}/admin?tab=certificates" class="sidebar-link">
+                <a href="${pageContext.request.contextPath}/admin/evaluation-report" class="sidebar-link">
                     <span class="sidebar-link-content">
-                        <span class="sidebar-link-icon">📜</span>
-                        <span>Global Certification</span>
+                        <span class="sidebar-link-icon">📋</span>
+                        <span>Internship Evaluation Report</span>
                     </span>
                 </a>
             </li>
@@ -656,14 +656,6 @@
                     <span class="sidebar-link-content">
                         <span class="sidebar-link-icon">📄</span>
                         <span>Certification</span>
-                    </span>
-                </a>
-            </li>
-            <li class="sidebar-menu-item">
-                <a href="${pageContext.request.contextPath}/admin?tab=projects" class="sidebar-link">
-                    <span class="sidebar-link-content">
-                        <span class="sidebar-link-icon">📁</span>
-                        <span>Project</span>
                     </span>
                 </a>
             </li>

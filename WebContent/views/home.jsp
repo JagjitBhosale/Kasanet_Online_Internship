@@ -449,19 +449,19 @@
                     &middot; Completion: <c:out value="${stats.assignmentCompletionPercent}"/>%</p>
             </div>
             <div class="stat-card">
-                <div class="stat-val">Unavailable</div>
-                <div class="stat-lbl">Course count</div>
-                <p class="stat-detail">The supplied production schema has no course or enrollment tables.</p>
-            </div>
-            <div class="stat-card">
-                <div class="stat-val">Unavailable</div>
-                <div class="stat-lbl">Test count</div>
-                <p class="stat-detail">Test results have no verified relationship to student.id.</p>
-            </div>
-            <div class="stat-card">
-                <div class="stat-val">Unavailable</div>
-                <div class="stat-lbl">Project count</div>
-                <p class="stat-detail">The production schema has no normalized per-student projects table.</p>
+                <div class="stat-val">
+                    <c:choose>
+                        <c:when test="${courseCount != null}"><c:out value="${courseCount}"/></c:when>
+                        <c:otherwise>Unavailable</c:otherwise>
+                    </c:choose>
+                </div>
+                <div class="stat-lbl">Courses enrolled</div>
+                <p class="stat-detail">
+                    <c:choose>
+                        <c:when test="${courseCount != null}">Your current course enrollments.</c:when>
+                        <c:otherwise>Enrollment data could not be loaded; check the server log.</c:otherwise>
+                    </c:choose>
+                </p>
             </div>
         </div>
         <nav class="dashboard-quick-actions" aria-label="Dashboard quick actions">

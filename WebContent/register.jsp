@@ -1,5 +1,6 @@
 ﻿<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/functions" prefix="fn" %>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -914,7 +915,7 @@
                                        id="firstName"
                                        name="firstName"
                                        placeholder="e.g. Rahul"
-                                       value="${not empty requestScope.firstName ? requestScope.firstName : ''}"
+                                       value="${fn:escapeXml(requestScope.enteredFirstName)}"
                                        maxlength="50"
                                        required>
                             </div>
@@ -932,7 +933,7 @@
                                        id="lastName"
                                        name="lastName"
                                        placeholder="e.g. Sharma"
-                                       value="${not empty requestScope.lastName ? requestScope.lastName : ''}"
+                                       value="${fn:escapeXml(requestScope.enteredLastName)}"
                                        maxlength="50"
                                        required>
                             </div>
@@ -947,10 +948,10 @@
                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
                                 </span>
                                 <select id="countryCode" name="countryCode" required>
-                                    <option value="+91" ${requestScope.countryCode == '+91' || empty requestScope.countryCode ? 'selected' : ''}>India (+91)</option>
-                                    <option value="+1"  ${requestScope.countryCode == '+1'  ? 'selected' : ''}>USA (+1)</option>
-                                    <option value="+44" ${requestScope.countryCode == '+44' ? 'selected' : ''}>UK (+44)</option>
-                                    <option value="+61" ${requestScope.countryCode == '+61' ? 'selected' : ''}>Australia (+61)</option>
+                                    <option value="+91" ${requestScope.enteredCountryCode == '+91' || empty requestScope.enteredCountryCode ? 'selected' : ''}>India (+91)</option>
+                                    <option value="+1"  ${requestScope.enteredCountryCode == '+1'  ? 'selected' : ''}>USA (+1)</option>
+                                    <option value="+44" ${requestScope.enteredCountryCode == '+44' ? 'selected' : ''}>UK (+44)</option>
+                                    <option value="+61" ${requestScope.enteredCountryCode == '+61' ? 'selected' : ''}>Australia (+61)</option>
                                 </select>
                             </div>
                         </div>
@@ -966,7 +967,7 @@
                                        id="mobile"
                                        name="mobile"
                                        placeholder="10-digit number"
-                                       value="${not empty requestScope.mobile ? requestScope.mobile : ''}"
+                                       value="${fn:escapeXml(requestScope.enteredMobile)}"
                                        maxlength="10"
                                        pattern="[0-9]{10}"
                                        required>
@@ -985,7 +986,7 @@
                                        id="email"
                                        name="email"
                                        placeholder="you@example.com"
-                                       value="${not empty requestScope.email ? requestScope.email : ''}"
+                                       value="${fn:escapeXml(requestScope.enteredEmail)}"
                                        maxlength="100"
                                        required>
                             </div>
@@ -1062,7 +1063,7 @@
                                        id="collegeName"
                                        name="collegeName"
                                        placeholder="e.g. Delhi University"
-                                       value="${not empty requestScope.collegeName ? requestScope.collegeName : ''}"
+                                       value="${fn:escapeXml(requestScope.enteredCollegeName)}"
                                        maxlength="120"
                                        required>
                             </div>
@@ -1077,10 +1078,10 @@
                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                                 </span>
                                 <select id="stream" name="stream" required>
-                                    <option value="" disabled ${empty requestScope.stream ? 'selected' : ''}>-- Select Stream --</option>
-                                    <option value="Graduation"      ${requestScope.stream == 'Graduation'      ? 'selected' : ''}>Graduation</option>
-                                    <option value="Post Graduation" ${requestScope.stream == 'Post Graduation' ? 'selected' : ''}>Post Graduation</option>
-                                    <option value="Diploma"         ${requestScope.stream == 'Diploma'         ? 'selected' : ''}>Diploma</option>
+                                    <option value="" disabled ${empty requestScope.enteredStream ? 'selected' : ''}>-- Select Stream --</option>
+                                    <option value="Graduation"      ${requestScope.enteredStream == 'Graduation'      ? 'selected' : ''}>Graduation</option>
+                                    <option value="Post Graduation" ${requestScope.enteredStream == 'Post Graduation' ? 'selected' : ''}>Post Graduation</option>
+                                    <option value="Diploma"         ${requestScope.enteredStream == 'Diploma'         ? 'selected' : ''}>Diploma</option>
                                 </select>
                             </div>
                             <span class="field-error" id="streamError">Please select your stream.</span>
@@ -1094,54 +1095,54 @@
                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
                                 </span>
                                 <select id="branchName" name="branchName" required>
-                                    <option value="" disabled ${empty requestScope.branchName ? 'selected' : ''}>-- Select Branch --</option>
+                                    <option value="" disabled ${empty requestScope.enteredBranchName ? 'selected' : ''}>-- Select Branch --</option>
                                     <optgroup label="Computer &amp; IT">
-                                        <option value="Computer Engineering"                    ${requestScope.branchName == 'Computer Engineering'                    ? 'selected' : ''}>Computer Engineering</option>
-                                        <option value="Computer Science and Engineering"        ${requestScope.branchName == 'Computer Science and Engineering'        ? 'selected' : ''}>Computer Science and Engineering (CSE)</option>
-                                        <option value="Information Technology"                  ${requestScope.branchName == 'Information Technology'                  ? 'selected' : ''}>Information Technology (IT)</option>
-                                        <option value="AI and Machine Learning"                 ${requestScope.branchName == 'AI and Machine Learning'                 ? 'selected' : ''}>AI and Machine Learning (AIML)</option>
-                                        <option value="Data Science"                            ${requestScope.branchName == 'Data Science'                            ? 'selected' : ''}>Data Science</option>
-                                        <option value="Cyber Security"                          ${requestScope.branchName == 'Cyber Security'                          ? 'selected' : ''}>Cyber Security</option>
-                                        <option value="Cloud Computing"                         ${requestScope.branchName == 'Cloud Computing'                         ? 'selected' : ''}>Cloud Computing</option>
-                                        <option value="Internet of Things"                      ${requestScope.branchName == 'Internet of Things'                      ? 'selected' : ''}>Internet of Things (IoT)</option>
+                                        <option value="Computer Engineering"                    ${requestScope.enteredBranchName == 'Computer Engineering'                    ? 'selected' : ''}>Computer Engineering</option>
+                                        <option value="Computer Science and Engineering"        ${requestScope.enteredBranchName == 'Computer Science and Engineering'        ? 'selected' : ''}>Computer Science and Engineering (CSE)</option>
+                                        <option value="Information Technology"                  ${requestScope.enteredBranchName == 'Information Technology'                  ? 'selected' : ''}>Information Technology (IT)</option>
+                                        <option value="AI and Machine Learning"                 ${requestScope.enteredBranchName == 'AI and Machine Learning'                 ? 'selected' : ''}>AI and Machine Learning (AIML)</option>
+                                        <option value="Data Science"                            ${requestScope.enteredBranchName == 'Data Science'                            ? 'selected' : ''}>Data Science</option>
+                                        <option value="Cyber Security"                          ${requestScope.enteredBranchName == 'Cyber Security'                          ? 'selected' : ''}>Cyber Security</option>
+                                        <option value="Cloud Computing"                         ${requestScope.enteredBranchName == 'Cloud Computing'                         ? 'selected' : ''}>Cloud Computing</option>
+                                        <option value="Internet of Things"                      ${requestScope.enteredBranchName == 'Internet of Things'                      ? 'selected' : ''}>Internet of Things (IoT)</option>
                                     </optgroup>
                                     <optgroup label="Electronics &amp; Communication">
-                                        <option value="Electronics and Communication Engineering" ${requestScope.branchName == 'Electronics and Communication Engineering' ? 'selected' : ''}>Electronics &amp; Communication Engineering (ECE)</option>
-                                        <option value="Electronics Engineering"                 ${requestScope.branchName == 'Electronics Engineering'                 ? 'selected' : ''}>Electronics Engineering</option>
-                                        <option value="Electrical Engineering"                  ${requestScope.branchName == 'Electrical Engineering'                  ? 'selected' : ''}>Electrical Engineering (EE)</option>
-                                        <option value="Electrical and Electronics Engineering"  ${requestScope.branchName == 'Electrical and Electronics Engineering'  ? 'selected' : ''}>Electrical &amp; Electronics Engineering (EEE)</option>
-                                        <option value="Instrumentation Engineering"             ${requestScope.branchName == 'Instrumentation Engineering'             ? 'selected' : ''}>Instrumentation Engineering</option>
-                                        <option value="Embedded Systems"                        ${requestScope.branchName == 'Embedded Systems'                        ? 'selected' : ''}>Embedded Systems</option>
-                                        <option value="VLSI Design"                             ${requestScope.branchName == 'VLSI Design'                             ? 'selected' : ''}>VLSI Design</option>
+                                        <option value="Electronics and Communication Engineering" ${requestScope.enteredBranchName == 'Electronics and Communication Engineering' ? 'selected' : ''}>Electronics &amp; Communication Engineering (ECE)</option>
+                                        <option value="Electronics Engineering"                 ${requestScope.enteredBranchName == 'Electronics Engineering'                 ? 'selected' : ''}>Electronics Engineering</option>
+                                        <option value="Electrical Engineering"                  ${requestScope.enteredBranchName == 'Electrical Engineering'                  ? 'selected' : ''}>Electrical Engineering (EE)</option>
+                                        <option value="Electrical and Electronics Engineering"  ${requestScope.enteredBranchName == 'Electrical and Electronics Engineering'  ? 'selected' : ''}>Electrical &amp; Electronics Engineering (EEE)</option>
+                                        <option value="Instrumentation Engineering"             ${requestScope.enteredBranchName == 'Instrumentation Engineering'             ? 'selected' : ''}>Instrumentation Engineering</option>
+                                        <option value="Embedded Systems"                        ${requestScope.enteredBranchName == 'Embedded Systems'                        ? 'selected' : ''}>Embedded Systems</option>
+                                        <option value="VLSI Design"                             ${requestScope.enteredBranchName == 'VLSI Design'                             ? 'selected' : ''}>VLSI Design</option>
                                     </optgroup>
                                     <optgroup label="Mechanical">
-                                        <option value="Mechanical Engineering"                  ${requestScope.branchName == 'Mechanical Engineering'                  ? 'selected' : ''}>Mechanical Engineering</option>
-                                        <option value="Automobile Engineering"                  ${requestScope.branchName == 'Automobile Engineering'                  ? 'selected' : ''}>Automobile Engineering</option>
-                                        <option value="Production Engineering"                  ${requestScope.branchName == 'Production Engineering'                  ? 'selected' : ''}>Production Engineering</option>
-                                        <option value="Aerospace Engineering"                   ${requestScope.branchName == 'Aerospace Engineering'                   ? 'selected' : ''}>Aerospace Engineering</option>
-                                        <option value="Industrial Engineering"                  ${requestScope.branchName == 'Industrial Engineering'                  ? 'selected' : ''}>Industrial Engineering</option>
-                                        <option value="Robotics and Automation"                 ${requestScope.branchName == 'Robotics and Automation'                 ? 'selected' : ''}>Robotics and Automation</option>
+                                        <option value="Mechanical Engineering"                  ${requestScope.enteredBranchName == 'Mechanical Engineering'                  ? 'selected' : ''}>Mechanical Engineering</option>
+                                        <option value="Automobile Engineering"                  ${requestScope.enteredBranchName == 'Automobile Engineering'                  ? 'selected' : ''}>Automobile Engineering</option>
+                                        <option value="Production Engineering"                  ${requestScope.enteredBranchName == 'Production Engineering'                  ? 'selected' : ''}>Production Engineering</option>
+                                        <option value="Aerospace Engineering"                   ${requestScope.enteredBranchName == 'Aerospace Engineering'                   ? 'selected' : ''}>Aerospace Engineering</option>
+                                        <option value="Industrial Engineering"                  ${requestScope.enteredBranchName == 'Industrial Engineering'                  ? 'selected' : ''}>Industrial Engineering</option>
+                                        <option value="Robotics and Automation"                 ${requestScope.enteredBranchName == 'Robotics and Automation'                 ? 'selected' : ''}>Robotics and Automation</option>
                                     </optgroup>
                                     <optgroup label="Civil &amp; Construction">
-                                        <option value="Civil Engineering"                       ${requestScope.branchName == 'Civil Engineering'                       ? 'selected' : ''}>Civil Engineering</option>
-                                        <option value="Structural Engineering"                  ${requestScope.branchName == 'Structural Engineering'                  ? 'selected' : ''}>Structural Engineering</option>
-                                        <option value="Environmental Engineering"               ${requestScope.branchName == 'Environmental Engineering'               ? 'selected' : ''}>Environmental Engineering</option>
-                                        <option value="Transportation Engineering"              ${requestScope.branchName == 'Transportation Engineering'              ? 'selected' : ''}>Transportation Engineering</option>
+                                        <option value="Civil Engineering"                       ${requestScope.enteredBranchName == 'Civil Engineering'                       ? 'selected' : ''}>Civil Engineering</option>
+                                        <option value="Structural Engineering"                  ${requestScope.enteredBranchName == 'Structural Engineering'                  ? 'selected' : ''}>Structural Engineering</option>
+                                        <option value="Environmental Engineering"               ${requestScope.enteredBranchName == 'Environmental Engineering'               ? 'selected' : ''}>Environmental Engineering</option>
+                                        <option value="Transportation Engineering"              ${requestScope.enteredBranchName == 'Transportation Engineering'              ? 'selected' : ''}>Transportation Engineering</option>
                                     </optgroup>
                                     <optgroup label="Chemical &amp; Biotechnology">
-                                        <option value="Chemical Engineering"                    ${requestScope.branchName == 'Chemical Engineering'                    ? 'selected' : ''}>Chemical Engineering</option>
-                                        <option value="Biotechnology"                           ${requestScope.branchName == 'Biotechnology'                           ? 'selected' : ''}>Biotechnology</option>
-                                        <option value="Biomedical Engineering"                  ${requestScope.branchName == 'Biomedical Engineering'                  ? 'selected' : ''}>Biomedical Engineering</option>
-                                        <option value="Petrochemical Engineering"               ${requestScope.branchName == 'Petrochemical Engineering'               ? 'selected' : ''}>Petrochemical Engineering</option>
-                                        <option value="Food Technology"                         ${requestScope.branchName == 'Food Technology'                         ? 'selected' : ''}>Food Technology</option>
+                                        <option value="Chemical Engineering"                    ${requestScope.enteredBranchName == 'Chemical Engineering'                    ? 'selected' : ''}>Chemical Engineering</option>
+                                        <option value="Biotechnology"                           ${requestScope.enteredBranchName == 'Biotechnology'                           ? 'selected' : ''}>Biotechnology</option>
+                                        <option value="Biomedical Engineering"                  ${requestScope.enteredBranchName == 'Biomedical Engineering'                  ? 'selected' : ''}>Biomedical Engineering</option>
+                                        <option value="Petrochemical Engineering"               ${requestScope.enteredBranchName == 'Petrochemical Engineering'               ? 'selected' : ''}>Petrochemical Engineering</option>
+                                        <option value="Food Technology"                         ${requestScope.enteredBranchName == 'Food Technology'                         ? 'selected' : ''}>Food Technology</option>
                                     </optgroup>
                                     <optgroup label="Management &amp; Applied Sciences">
-                                        <option value="BCA"                                     ${requestScope.branchName == 'BCA'                                     ? 'selected' : ''}>BCA (Bachelor of Computer Applications)</option>
-                                        <option value="MCA"                                     ${requestScope.branchName == 'MCA'                                     ? 'selected' : ''}>MCA (Master of Computer Applications)</option>
-                                        <option value="B.Sc Computer Science"                  ${requestScope.branchName == 'B.Sc Computer Science'                  ? 'selected' : ''}>B.Sc Computer Science</option>
-                                        <option value="B.Sc Information Technology"            ${requestScope.branchName == 'B.Sc Information Technology'            ? 'selected' : ''}>B.Sc Information Technology</option>
-                                        <option value="MBA Information Technology"              ${requestScope.branchName == 'MBA Information Technology'              ? 'selected' : ''}>MBA - Information Technology</option>
-                                        <option value="Other"                                   ${requestScope.branchName == 'Other'                                   ? 'selected' : ''}>Other</option>
+                                        <option value="BCA"                                     ${requestScope.enteredBranchName == 'BCA'                                     ? 'selected' : ''}>BCA (Bachelor of Computer Applications)</option>
+                                        <option value="MCA"                                     ${requestScope.enteredBranchName == 'MCA'                                     ? 'selected' : ''}>MCA (Master of Computer Applications)</option>
+                                        <option value="B.Sc Computer Science"                  ${requestScope.enteredBranchName == 'B.Sc Computer Science'                  ? 'selected' : ''}>B.Sc Computer Science</option>
+                                        <option value="B.Sc Information Technology"            ${requestScope.enteredBranchName == 'B.Sc Information Technology'            ? 'selected' : ''}>B.Sc Information Technology</option>
+                                        <option value="MBA Information Technology"              ${requestScope.enteredBranchName == 'MBA Information Technology'              ? 'selected' : ''}>MBA - Information Technology</option>
+                                        <option value="Other"                                   ${requestScope.enteredBranchName == 'Other'                                   ? 'selected' : ''}>Other</option>
                                     </optgroup>
                                 </select>
                             </div>
@@ -1159,7 +1160,7 @@
                                        id="city"
                                        name="city"
                                        placeholder="e.g. Mumbai"
-                                       value="${not empty requestScope.city ? requestScope.city : ''}"
+                                       value="${fn:escapeXml(requestScope.enteredCity)}"
                                        maxlength="80"
                                        required>
                             </div>
@@ -1180,7 +1181,7 @@
                                        id="referralCode"
                                        name="referralCode"
                                        placeholder="Enter referral code if you have one"
-                                       value="${not empty requestScope.referralCode ? requestScope.referralCode : ''}"
+                                       value="${fn:escapeXml(requestScope.enteredReferralCode)}"
                                        maxlength="20">
                             </div>
                         </div>

@@ -182,7 +182,6 @@ public class RegisterServlet extends HttpServlet {
     }
 
     private String sanitize(String input) {
-        if (input == null) return "";
-        return input.replaceAll("[<>\"'&]", "").trim();
+        return input == null ? "" : input.trim();
     }
 }
