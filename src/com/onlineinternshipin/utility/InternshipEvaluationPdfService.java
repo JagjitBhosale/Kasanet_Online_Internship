@@ -12,8 +12,10 @@ import javax.imageio.ImageIO;
 import javax.servlet.ServletContext;
 import java.awt.*;
 import java.awt.geom.Line2D;
+import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.format.DateTimeFormatter;
@@ -35,19 +37,20 @@ public class InternshipEvaluationPdfService {
     private static final float  PAGE_H        = PDRectangle.A4.getHeight();  // 841.89
     private static final float  MARGIN_LEFT   = 54f;
     private static final float  MARGIN_RIGHT  = 54f;
-    private static final float  CONTENT_W     = PAGE_W - MARGIN_LEFT - MARGIN_RIGHT;
+    private static final float  CONTENT_W     = PAGE_W - MARGIN_LEFT - MARGIN_RIGHT; // 487.28
     private static final float  HEADER_H      = 70f;   // height reserved for letterhead
     private static final float  FOOTER_H      = 24f;   // height of orange footer bar
-    private static final float  CONTENT_TOP   = HEADER_H + 14f;  // y where body text starts
-    private static final float  CONTENT_BOT   = PAGE_H - FOOTER_H - 14f; // y where body ends
+    private static final float  CONTENT_TOP   = HEADER_H + 16f;  // y where body text starts
 
     // header image proportional height when scaled to CONTENT_W
     // actual image: 1299 × 130 → aspect ≈ 9.99 : 1
     private static final float  HEADER_IMG_H  = CONTENT_W / (1299f / 130f);
 
-    // orange brand colour (#E8601C approximate)
+    // brand colours
     private static final Color  KASNET_ORANGE = new Color(0xE8, 0x60, 0x1C);
     private static final Color  KASNET_DARK   = new Color(0x27, 0x2F, 0x64);  // dark navy/indigo
+    private static final Color  BORDER_COLOR  = new Color(0xBB, 0xC3, 0xD4);  // clean professional table border
+    private static final Color  LINE_MUTED    = new Color(0xCC, 0xD2, 0xDE);  // subtle divider line
 
     private static final DateTimeFormatter DATE_FMT =
             DateTimeFormatter.ofPattern("dd MMMM uuuu", Locale.ENGLISH);
@@ -67,7 +70,7 @@ public class InternshipEvaluationPdfService {
     /**
      * Generate the PDF bytes for the given report.
      *
-     * @param context  servlet context used to load images from WEB-INF
+     * @param context  servlet context used to load images from WEB-INF (or null for local testing)
      * @param report   populated evaluation report model
      */
     public byte[] generate(ServletContext context, InternshipEvaluationReport report) throws IOException {
@@ -97,10 +100,16 @@ public class InternshipEvaluationPdfService {
     }
 
     private static BufferedImage loadImage(ServletContext ctx, String path) throws IOException {
-        try (InputStream in = ctx.getResourceAsStream(path)) {
-            if (in == null) return null;
-            return ImageIO.read(in);
+        if (ctx != null) {
+            try (InputStream in = ctx.getResourceAsStream(path)) {
+                if (in != null) return ImageIO.read(in);
+            }
         }
+        File fallback = new File("WebContent" + path);
+        if (fallback.exists()) {
+            return ImageIO.read(fallback);
+        }
+        return null;
     }
 
     // ── PDF page helpers ─────────────────────────────────────────────────────
@@ -124,51 +133,58 @@ public class InternshipEvaluationPdfService {
 
         drawHeaderFooter(g);
 
-        float y = CONTENT_TOP;
+        float y = CONTENT_TOP + 6f;
 
         // ── document title block ──────────────────────────────────────────
-        y += 6;
+        Font titleFont = font(Font.BOLD, 12.5f);
         drawCentred(g, "INTERNSHIP EVALUATION REPORT & COMPANY RECOMMENDATION",
-                y, font(Font.BOLD, 13), KASNET_DARK);
-        y += 5;
+                y, titleFont, KASNET_DARK);
+        y += 6f;
         // orange underline
         g.setColor(KASNET_ORANGE);
         g.setStroke(new BasicStroke(1.4f));
         g.draw(new Line2D.Float(MARGIN_LEFT, y, PAGE_W - MARGIN_RIGHT, y));
         g.setColor(Color.BLACK);
-        y += 14;
+        y += 16f;
 
         // ── 1. Student Information ────────────────────────────────────────
+        float colonX = MARGIN_LEFT + 155f;
         y = sectionHeader(g, "1.  Student Information", y);
-        y = fieldRow(g, "Student Name",          report.studentName,       y);
-        y = fieldRow(g, "College Name",           report.collegeName,       y);
-        y = fieldRow(g, "Branch / Department",    report.branchDepartment,  y);
-        y = fieldRow(g, "City",                   report.city,              y);
-        y = fieldRow(g, "Internship Duration",    report.internshipDuration,y);
-        y += 6;
+        y = alignedFieldRow(g, "Student Name",          report.studentName,        y, colonX);
+        y = alignedFieldRow(g, "College Name",           report.collegeName,        y, colonX);
+        y = alignedFieldRow(g, "Branch / Department",    report.branchDepartment,   y, colonX);
+        y = alignedFieldRow(g, "City",                   report.city,               y, colonX);
+        y = alignedFieldRow(g, "Internship Duration",    report.internshipDuration, y, colonX);
+        y += 6f;
 
         // ── 2. Global Certification Details ──────────────────────────────
         y = sectionHeader(g, "2.  Global Certification Details", y);
-        y = fieldRow(g, "Global Certification Name", report.certificationName,  y);
-        y = fieldRow(g, "Certification Score",        report.certificationScore, y);
-        y = fieldRow(g, "Date of Achievement",
-                DATE_FMT.format(report.certificationDate), y);
-        y += 6;
+        y = alignedFieldRow(g, "Global Certification Name", report.certificationName,  y, colonX);
+        y = alignedFieldRow(g, "Certification Score",        report.certificationScore, y, colonX);
+        y = alignedFieldRow(g, "Date of Achievement",
+                DATE_FMT.format(report.certificationDate), y, colonX);
+        y += 6f;
 
         // ── 3. Internship Performance Evaluation ─────────────────────────
         y = sectionHeader(g, "3.  Internship Performance Evaluation", y);
-        y += 2;
+        y += 2f;
         y = drawEvaluationTable(g, report, y);
-        y += 6;
+        y += 20f;   // generous gap between table bottom and overall rating
 
-        // overall rating line
-        g.setFont(font(Font.BOLD, 10));
+        // ── Overall Rating row ────────────────────────────────────────────
+        Font ratingFont = font(Font.BOLD, 10.5f);
+        g.setFont(ratingFont);
         g.setColor(KASNET_DARK);
-        String ratingLabel = "Overall Rating:  " + report.overallRating + " / 5";
+        FontMetrics rFm = g.getFontMetrics(ratingFont);
+        String ratingLabel = "Overall Rating:   " + report.overallRating + " / 5";
         g.drawString(ratingLabel, MARGIN_LEFT, y);
-        // draw filled stars
-        drawStars(g, report.overallRating, MARGIN_LEFT + g.getFontMetrics().stringWidth(ratingLabel) + 10, y - 9, 11);
-        y += 4;
+
+        // draw 5 geometric vector stars aligned with cap-height center
+        float labelWidth = rFm.stringWidth(ratingLabel);
+        float starsX = MARGIN_LEFT + labelWidth + 14f;
+        float starRadius = 6.2f; // ~12.4 pt diameter
+        float starCenterY = y - rFm.getAscent() / 2f + 0.5f;
+        drawStars(g, report.overallRating, starsX, starCenterY, starRadius, 4.5f);
 
         g.dispose();
         return img;
@@ -180,35 +196,35 @@ public class InternshipEvaluationPdfService {
         Graphics2D g = gfx(img);
         drawHeaderFooter(g);
 
-        float y = CONTENT_TOP + 4;
+        float y = CONTENT_TOP + 10f;
 
         // ── 4. Overall Performance Assessment ────────────────────────────
         y = sectionHeader(g, "4.  Overall Performance Assessment", y);
-        y += 2;
+        y += 6f;
         y = paragraph(g, "The candidate has participated in the internship program conducted by KasNet "
                 + "Technologies Pvt. Ltd. and has demonstrated commitment to learning, professional "
                 + "discipline, and project-based development.", y);
-        y += 6;
-        y = paragraph(g, "The candidate\u2019s performance has been assessed based on attendance, punctuality, "
+        y += 10f;
+        y = paragraph(g, "The candidate's performance has been assessed based on attendance, punctuality, "
                 + "understanding of project requirements, assignment completion, technical implementation, "
                 + "documentation, presentation, and global certification achievements.", y);
-        y += 6;
-        y = paragraph(g, "The above ratings reflect the candidate\u2019s evaluated performance during the "
+        y += 10f;
+        y = paragraph(g, "The above ratings reflect the candidate's evaluated performance during the "
                 + "internship period.", y);
-        y += 14;
+        y += 24f;
 
         // ── 5. Recommendation to the Company ─────────────────────────────
         y = sectionHeader(g, "5.  Recommendation to the Company", y);
-        y += 2;
-        y = paragraph(g, "Based on the candidate\u2019s internship evaluation, project work, technical "
+        y += 6f;
+        y = paragraph(g, "Based on the candidate's internship evaluation, project work, technical "
                 + "competencies, and professional conduct, KasNet Technologies Pvt. Ltd. recommends "
                 + "the candidate for consideration for suitable entry-level employment opportunities.", y);
-        y += 6;
+        y += 10f;
         y = paragraph(g, "The candidate may be considered for relevant roles in Software Development, "
                 + "Cloud Computing, Data Analytics, Business Intelligence, or other suitable IT domains, "
-                + "depending on the candidate\u2019s demonstrated skills, qualifications, and the company\u2019s "
+                + "depending on the candidate's demonstrated skills, qualifications, and the company's "
                 + "requirements.", y);
-        y += 6;
+        y += 10f;
         y = paragraph(g, "We encourage the candidate to continue developing technical expertise, "
                 + "communication skills, problem-solving abilities, and professional competencies to "
                 + "succeed in the corporate environment.", y);
@@ -223,49 +239,51 @@ public class InternshipEvaluationPdfService {
         Graphics2D g = gfx(img);
         drawHeaderFooter(g);
 
-        float y = CONTENT_TOP + 4;
+        float y = CONTENT_TOP + 10f;
 
         // ── 6. Final Recommendation ───────────────────────────────────────
+        float colonX6 = MARGIN_LEFT + 155f;
         y = sectionHeader(g, "6.  Final Recommendation", y);
-        y = fieldRow(g, "Internship Status",        report.internshipStatus,        y);
-        y = fieldRow(g, "Company Recommendation",   report.companyRecommendation,   y);
-        y = fieldRow(g, "Key Strengths",            report.keyStrengths,            y);
-        y = fieldRow(g, "Areas for Improvement",    report.improvementAreas,        y);
-        y = fieldRow(g, "Evaluator\u2019s Remarks", report.evaluatorRemarks,        y);
-        y = fieldRow(g, "Date of Evaluation",       DATE_FMT.format(report.evaluationDate), y);
-        y += 18;
+        y = alignedFieldRow(g, "Internship Status",        report.internshipStatus,        y, colonX6);
+        y = alignedFieldRow(g, "Company Recommendation",   report.companyRecommendation,   y, colonX6);
+        y = alignedFieldRow(g, "Key Strengths",            report.keyStrengths,            y, colonX6);
+        y = alignedFieldRow(g, "Areas for Improvement",    report.improvementAreas,        y, colonX6);
+        y = alignedFieldRow(g, "Evaluator's Remarks",      report.evaluatorRemarks,        y, colonX6);
+        y = alignedFieldRow(g, "Date of Evaluation",       DATE_FMT.format(report.evaluationDate), y, colonX6);
+        y += 28f;
 
         // ── Authorisation block ───────────────────────────────────────────
-        // "For KasNet Technologies Pvt. Ltd." label
-        g.setFont(font(Font.BOLD, 10));
-        g.setColor(KASNET_DARK);
-        g.drawString("For KasNet Technologies Pvt. Ltd.", MARGIN_LEFT, y);
-        y += 4;
-
-        // signature image (left column) + stamp image (right column)
-        float sigW  = 130f;
-        float sigH  = cachedSignature != null ? sigW * cachedSignature.getHeight() / (float) cachedSignature.getWidth() : 60f;
-        float stpSz = 100f;
+        float sigW = 145f;
+        float sigH = cachedSignature != null
+                ? sigW * cachedSignature.getHeight() / (float) cachedSignature.getWidth()
+                : 65f;
+        float stpSz = 102f;
         float sigX  = MARGIN_LEFT;
         float stpX  = PAGE_W - MARGIN_RIGHT - stpSz;
-        float imgY  = y + 4;
+        float imgY  = y;
 
+        // If signature image is missing, draw text fallback; if present, the image already has "For KasNet..."
         if (cachedSignature != null) {
             drawImage(g, cachedSignature, sigX, imgY, sigW, sigH);
-        }
-        if (cachedStamp != null) {
-            drawImage(g, cachedStamp, stpX, imgY, stpSz, stpSz);
+        } else {
+            g.setFont(font(Font.BOLD, 10));
+            g.setColor(KASNET_DARK);
+            g.drawString("For KasNet Technologies Pvt. Ltd.", sigX, imgY + 12f);
         }
 
-        float afterImages = imgY + Math.max(sigH, stpSz) + 8;
+        // Company Stamp on the right
+        if (cachedStamp != null) {
+            drawImage(g, cachedStamp, stpX, imgY - 8f, stpSz, stpSz);
+        }
+
+        float afterImages = imgY + Math.max(sigH, stpSz) + 12f;
 
         // evaluator details below signature
-        g.setFont(font(Font.BOLD, 9));
-        g.setColor(Color.BLACK);
         float ey = afterImages;
-        ey = miniField(g, "Evaluator Name", report.evaluatorName, ey);
-        ey = miniField(g, "Designation",    report.designation,   ey);
-        ey = miniField(g, "Signature",      report.signature,     ey);
+        float evalColonX = MARGIN_LEFT + 105f;
+        ey = alignedFieldRow(g, "Evaluator Name", report.evaluatorName, ey, evalColonX);
+        ey = alignedFieldRow(g, "Designation",    report.designation,   ey, evalColonX);
+        ey = alignedFieldRow(g, "Signature",      report.signature,     ey, evalColonX);
 
         g.dispose();
         return img;
@@ -279,7 +297,6 @@ public class InternshipEvaluationPdfService {
         if (cachedHeader != null) {
             drawImage(g, cachedHeader, MARGIN_LEFT, 10f, CONTENT_W, HEADER_IMG_H);
         } else {
-            // fallback text header
             g.setFont(font(Font.BOLD, 14));
             g.setColor(KASNET_DARK);
             drawCentred(g, "KasNet Technologies Pvt. Ltd.", 36f, font(Font.BOLD, 14), KASNET_DARK);
@@ -301,7 +318,7 @@ public class InternshipEvaluationPdfService {
         FontMetrics fm = g.getFontMetrics();
         String url = "www.kasnetinc.com";
         float tx = (PAGE_W - fm.stringWidth(url)) / 2f;
-        g.drawString(url, tx, barY + FOOTER_H / 2f + fm.getAscent() / 2f - 1f);
+        g.drawString(url, tx, barY + FOOTER_H / 2f + fm.getAscent() / 2f - 1.5f);
 
         g.setColor(Color.BLACK);
         g.setStroke(new BasicStroke(0.5f));
@@ -309,237 +326,253 @@ public class InternshipEvaluationPdfService {
 
     /** Section header: bold dark text with an orange left accent bar. */
     private float sectionHeader(Graphics2D g, String text, float y) {
-        // orange left accent rect
+        Font hFont = font(Font.BOLD, 11);
+        FontMetrics hFm = g.getFontMetrics(hFont);
+        int ascent  = hFm.getAscent();
+        int descent = hFm.getDescent();
+        int barH    = ascent + descent + 2;
+
+        // orange left accent bar
         g.setColor(KASNET_ORANGE);
-        g.fillRect(Math.round(MARGIN_LEFT), Math.round(y - 11f), 3, 15);
-        // text
-        g.setFont(font(Font.BOLD, 11));
+        g.fillRect(Math.round(MARGIN_LEFT), Math.round(y - ascent - 1), 3, barH);
+
+        // header title
+        g.setFont(hFont);
         g.setColor(KASNET_DARK);
         g.drawString(text, MARGIN_LEFT + 8f, y);
-        // thin divider line
-        y += 3;
-        g.setColor(new Color(0xCC, 0xCC, 0xCC));
-        g.setStroke(new BasicStroke(0.4f));
-        g.draw(new Line2D.Float(MARGIN_LEFT, y, PAGE_W - MARGIN_RIGHT, y));
+
+        // subtle horizontal line underneath
+        float divY = y + descent + 4f;
+        g.setColor(LINE_MUTED);
+        g.setStroke(new BasicStroke(0.5f));
+        g.draw(new Line2D.Float(MARGIN_LEFT, divY, PAGE_W - MARGIN_RIGHT, divY));
         g.setColor(Color.BLACK);
-        return y + 11;
+        return divY + 10f;
     }
 
     /**
-     * Draws a label : value row.  Returns the new y position.
-     * Label is in dark bold; value follows on the same line after a fixed tab.
+     * Draws a label : value row where all colons align at the exact same horizontal position colonX.
+     * Label is bold dark; colon is bold dark; value is plain black with dotted underline.
      */
-    private float fieldRow(Graphics2D g, String label, String value, float y) {
+    private float alignedFieldRow(Graphics2D g, String label, String value, float y, float colonX) {
         Font labelFont = font(Font.BOLD, 9);
         Font valueFont = font(Font.PLAIN, 9);
 
-        float labelTabW = 148f;  // fixed label column width
-        float valueX    = MARGIN_LEFT + labelTabW;
-        float valueW    = PAGE_W - MARGIN_RIGHT - valueX;
+        float valueX = colonX + 12f;
+        float valueW = PAGE_W - MARGIN_RIGHT - valueX;
 
-        // label
+        FontMetrics vFm = g.getFontMetrics(valueFont);
+        float baseline = y;
+
+        // draw label
         g.setFont(labelFont);
         g.setColor(KASNET_DARK);
-        g.drawString(label + " :", MARGIN_LEFT, y);
+        g.drawString(label, MARGIN_LEFT, baseline);
 
-        // value (may wrap)
+        // draw colon at the exact fixed position
+        g.drawString(":", colonX, baseline);
+
+        // draw value (may wrap across multiple lines)
         g.setFont(valueFont);
         g.setColor(Color.BLACK);
-        List<String> lines = wrap(value == null ? "" : value, g.getFontMetrics(valueFont), valueW);
+        List<String> lines = wrap(value == null ? "" : value, vFm, valueW);
         if (lines.isEmpty()) lines.add("");
 
-        float lineY = y;
+        float lineY = baseline;
+        float lineSpacing = 14f;
         for (String line : lines) {
             g.drawString(line, valueX, lineY);
-            // dotted underline
-            g.setColor(new Color(0xBB, 0xBB, 0xBB));
+            // subtle dotted underline
+            g.setColor(new Color(0xC5, 0xCB, 0xD6));
             g.setStroke(new BasicStroke(0.4f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER,
                     1f, new float[]{2f, 2f}, 0f));
-            g.draw(new Line2D.Float(valueX, lineY + 2.5f, valueX + valueW, lineY + 2.5f));
+            g.draw(new Line2D.Float(valueX, lineY + 3f, valueX + valueW, lineY + 3f));
             g.setStroke(new BasicStroke(0.5f));
             g.setColor(Color.BLACK);
-            lineY += 13f;
+            lineY += lineSpacing;
         }
-        return Math.max(y + 17f, lineY + 2f);
+
+        return Math.max(baseline + 17f, lineY + 1f);
     }
 
-    /** Small label: value pair used in the evaluator block (compact). */
-    private float miniField(Graphics2D g, String label, String value, float y) {
-        g.setFont(font(Font.BOLD, 9));
-        g.setColor(KASNET_DARK);
-        g.drawString(label + ":", MARGIN_LEFT, y);
-        g.setFont(font(Font.PLAIN, 9));
-        g.setColor(Color.BLACK);
-        g.drawString(value == null ? "" : value, MARGIN_LEFT + 90f, y);
-        return y + 14f;
-    }
-
-    /** Draws a justified paragraph. Returns new y. */
+    /** Draws a clean paragraph with proper word spacing and line height. */
     private float paragraph(Graphics2D g, String text, float y) {
-        Font pFont = font(Font.PLAIN, 10);
+        Font pFont = font(Font.PLAIN, 9.8f);
         g.setFont(pFont);
-        g.setColor(Color.BLACK);
+        g.setColor(new Color(0x1F, 0x24, 0x30));
         FontMetrics fm = g.getFontMetrics(pFont);
+        float lineSpacing = 15.5f;
         List<String> lines = wrap(text, fm, CONTENT_W);
-        for (int i = 0; i < lines.size(); i++) {
-            String line = lines.get(i);
-            boolean isLast = (i == lines.size() - 1);
-            if (isLast) {
-                g.drawString(line, MARGIN_LEFT, y);
-            } else {
-                drawJustified(g, line, fm, MARGIN_LEFT, y, CONTENT_W);
-            }
-            y += 14f;
+        for (String line : lines) {
+            g.drawString(line, MARGIN_LEFT, y);
+            y += lineSpacing;
         }
         return y;
     }
 
-    /** Draws a word-spaced justified line. */
-    private void drawJustified(Graphics2D g, String line, FontMetrics fm, float x, float y, float maxW) {
-        String[] words = line.trim().split(" +");
-        if (words.length <= 1) {
-            g.drawString(line, x, y);
-            return;
-        }
-        int textW = fm.stringWidth(line.trim());
-        float gap = (maxW - textW) / (words.length - 1);
-        float cx = x;
-        for (String word : words) {
-            g.drawString(word, cx, y);
-            cx += fm.stringWidth(word) + gap;
-        }
-    }
-
-    /** Draws the evaluation criteria table. Returns y after the table. */
+    /**
+     * Draws the evaluation criteria table with continuous, unbroken grid lines
+     * and perfectly centered badges and labels.
+     */
     private float drawEvaluationTable(Graphics2D g, InternshipEvaluationReport report, float top) {
         String[] CRITERIA = InternshipEvaluationReport.CRITERIA;
         int rows = CRITERIA.length + 1; // +1 header row
-        float rowH = 19f;
+        float rowH = 22.5f;             // spacious, professional row height
 
         // column x boundaries
         float c0 = MARGIN_LEFT;
-        float c1 = MARGIN_LEFT + CONTENT_W * 0.59f;   // ~59% for criteria
-        float c2 = MARGIN_LEFT + CONTENT_W * 0.80f;   // ~21% for status
-        float c3 = MARGIN_LEFT + CONTENT_W;            // ~20% for rating
+        float c1 = MARGIN_LEFT + CONTENT_W * 0.58f;   // ~58% for criteria
+        float c2 = MARGIN_LEFT + CONTENT_W * 0.81f;   // ~23% for status
+        float c3 = MARGIN_LEFT + CONTENT_W;            // ~19% for rating
 
         float tableH = rowH * rows;
 
-        // header row background
+        // 1. FILL ALL ROW BACKGROUNDS FIRST
+        // Header background (Navy)
         g.setColor(KASNET_DARK);
         g.fillRect(Math.round(c0), Math.round(top), Math.round(CONTENT_W), Math.round(rowH));
 
-        // draw grid
-        g.setColor(new Color(0xDD, 0xDD, 0xDD));
-        g.setStroke(new BasicStroke(0.4f));
-        // outer rect
-        g.setColor(KASNET_DARK);
-        g.setStroke(new BasicStroke(0.7f));
-        g.drawRect(Math.round(c0), Math.round(top), Math.round(CONTENT_W), Math.round(tableH));
-        // vertical dividers
-        for (float cx : new float[]{c1, c2}) {
-            g.draw(new Line2D.Float(cx, top, cx, top + tableH));
+        // Data rows (alternating soft tint)
+        Color rowAlt  = new Color(0xF4, 0xF7, 0xFA);
+        Color rowBase = Color.WHITE;
+        for (int i = 0; i < CRITERIA.length; i++) {
+            float ry = top + rowH * (i + 1);
+            g.setColor(i % 2 == 0 ? rowBase : rowAlt);
+            g.fillRect(Math.round(c0), Math.round(ry), Math.round(CONTENT_W), Math.round(rowH));
         }
-        // horizontal row lines
-        g.setColor(new Color(0xCC, 0xCC, 0xCC));
-        g.setStroke(new BasicStroke(0.4f));
+
+        // 2. DRAW ALL GRID LINES ON TOP (so vertical lines are unbroken)
+        g.setColor(BORDER_COLOR);
+        g.setStroke(new BasicStroke(0.6f));
+
+        // Outer border
+        g.drawRect(Math.round(c0), Math.round(top), Math.round(CONTENT_W), Math.round(tableH));
+
+        // Vertical dividers (continuous from top to bottom)
+        g.draw(new Line2D.Float(c1, top, c1, top + tableH));
+        g.draw(new Line2D.Float(c2, top, c2, top + tableH));
+
+        // Horizontal dividers
         for (int i = 1; i < rows; i++) {
             float ry = top + rowH * i;
             g.draw(new Line2D.Float(c0, ry, c0 + CONTENT_W, ry));
         }
 
-        // header text (white)
+        // 3. DRAW HEADER TEXT
         Font hFont = font(Font.BOLD, 8.5f);
+        g.setFont(hFont);
         g.setColor(Color.WHITE);
-        drawVCentredCell(g, "Evaluation Criteria", c0 + 5, top, c1 - c0 - 10, rowH, hFont);
-        drawVCentredCell(g, "Status",              c1 + 4, top, c2 - c1 - 8,  rowH, hFont);
-        drawVCentredCell(g, "Rating (1–5)",        c2 + 4, top, c3 - c2 - 8,  rowH, hFont);
+        FontMetrics hFm = g.getFontMetrics(hFont);
+        float hBaseY = top + (rowH - (hFm.getAscent() + hFm.getDescent())) / 2f + hFm.getAscent();
 
-        // alternating row colours
-        Color rowAlt  = new Color(0xF4, 0xF7, 0xFF);
-        Color rowBase = Color.WHITE;
-        Font bFont = font(Font.PLAIN, 8.5f);
+        // Col 1: Evaluation Criteria (left-aligned with 10pt indent)
+        g.drawString("Evaluation Criteria", c0 + 10f, hBaseY);
+
+        // Col 2: Status (centered in column 2)
+        String hStatus = "Status";
+        float hStatusX = c1 + (c2 - c1 - hFm.stringWidth(hStatus)) / 2f;
+        g.drawString(hStatus, hStatusX, hBaseY);
+
+        // Col 3: Rating (1-5) (centered in column 3)
+        String hRating = "Rating (1–5)";
+        float hRatingX = c2 + (c3 - c2 - hFm.stringWidth(hRating)) / 2f;
+        g.drawString(hRating, hRatingX, hBaseY);
+
+        // 4. DRAW ROW CONTENT
+        Font bFont = font(Font.PLAIN, 8.8f);
+        g.setFont(bFont);
+        FontMetrics bFm = g.getFontMetrics(bFont);
+        float lineH = bFm.getAscent() + bFm.getDescent();
 
         for (int i = 0; i < CRITERIA.length; i++) {
             float ry = top + rowH * (i + 1);
-            // fill alternating
-            g.setColor(i % 2 == 0 ? rowBase : rowAlt);
-            g.fillRect(Math.round(c0) + 1, Math.round(ry) + 1,
-                    Math.round(CONTENT_W) - 1, Math.round(rowH) - 1);
+            float rowBaseY = ry + (rowH - lineH) / 2f + bFm.getAscent();
 
-            int rating = report.evaluations.get(i).rating;
-            String status = report.evaluations.get(i).status;
+            String crit = CRITERIA[i];
+            String stat = report.evaluations.get(i).status;
+            int    rate = report.evaluations.get(i).rating;
 
-            g.setColor(Color.BLACK);
-            drawVCentredCell(g, CRITERIA[i],          c0 + 5, ry, c1 - c0 - 10, rowH, bFont);
-            drawVCentredCell(g, status,                c1 + 4, ry, c2 - c1 - 8,  rowH, bFont);
+            // Col 1: Criteria text
+            g.setFont(bFont);
+            g.setColor(new Color(0x1F, 0x24, 0x30));
+            g.drawString(crit, c0 + 10f, rowBaseY);
 
-            // coloured rating badge
-            drawRatingBadge(g, rating, c2, ry, c3 - c2, rowH);
+            // Col 2: Status (centered in column 2)
+            float statW = bFm.stringWidth(stat);
+            float statX = c1 + (c2 - c1 - statW) / 2f;
+            g.drawString(stat, statX, rowBaseY);
+
+            // Col 3: Rating badge (centered pill)
+            drawRatingBadge(g, rate, c2, ry, c3 - c2, rowH);
         }
 
         return top + tableH;
     }
 
-    /** Draws a small coloured rating badge centred in its cell. */
+    /**
+     * Draws a perfectly centered rating badge pill inside a cell.
+     */
     private void drawRatingBadge(Graphics2D g, int rating, float cellX, float cellY,
                                   float cellW, float cellH) {
         Color bg;
         if (rating >= 5)      bg = new Color(0x27, 0xAE, 0x60); // green
-        else if (rating >= 4) bg = new Color(0x2E, 0x86, 0xC1); // blue
+        else if (rating >= 4) bg = new Color(0x29, 0x80, 0xB9); // blue
         else if (rating >= 3) bg = new Color(0xF3, 0x9C, 0x12); // amber
         else                  bg = new Color(0xC0, 0x39, 0x2B); // red
 
-        float bW = 20f, bH = 11f;
+        float bW = 28f, bH = 15f;
         float bX = cellX + (cellW - bW) / 2f;
         float bY = cellY + (cellH - bH) / 2f;
 
         g.setColor(bg);
-        g.fillRoundRect(Math.round(bX), Math.round(bY), Math.round(bW), Math.round(bH), 4, 4);
-        g.setFont(font(Font.BOLD, 8f));
+        g.fillRoundRect(Math.round(bX), Math.round(bY), Math.round(bW), Math.round(bH), 6, 6);
+
+        // draw number dead-centered
+        Font badgeFont = font(Font.BOLD, 8.5f);
+        g.setFont(badgeFont);
         g.setColor(Color.WHITE);
-        FontMetrics fm = g.getFontMetrics();
+        FontMetrics fm = g.getFontMetrics(badgeFont);
         String txt = String.valueOf(rating);
-        g.drawString(txt,
-                bX + (bW - fm.stringWidth(txt)) / 2f,
-                bY + (bH + fm.getAscent() - fm.getDescent()) / 2f - 1f);
+        float tx = bX + (bW - fm.stringWidth(txt)) / 2f;
+        float ty = bY + (bH - (fm.getAscent() + fm.getDescent())) / 2f + fm.getAscent();
+        g.drawString(txt, tx, ty);
     }
 
-    /** Draws text vertically centred within a table cell. */
-    private void drawVCentredCell(Graphics2D g, String text, float x, float rowTop,
-                                   float maxW, float rowH, Font f) {
-        Font fitted = f;
-        float sz = f.getSize2D();
-        FontMetrics fm = g.getFontMetrics(fitted);
-        while (fm.stringWidth(text) > maxW && sz > 6f) {
-            sz = Math.max(6f, sz - 0.5f);
-            fitted = f.deriveFont(sz);
-            fm = g.getFontMetrics(fitted);
-        }
-        g.setFont(fitted);
-        g.drawString(text, x, rowTop + (rowH + fm.getAscent() - fm.getDescent()) / 2f - 1f);
-    }
-
-    /** Draws five-pointed filled stars for the rating. */
-    private void drawStars(Graphics2D g, int rating, float x, float y, float size) {
+    /**
+     * Draws rating stars as smooth geometric vector paths centered vertically at centerY.
+     */
+    private void drawStars(Graphics2D g, int rating, float startX, float centerY, float radius, float gap) {
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        Color gold = new Color(0xF3, 0x9C, 0x12);
+        Color gray = new Color(0xDB, 0xE0, 0xEA);
+
         for (int i = 0; i < 5; i++) {
-            g.setColor(i < rating ? new Color(0xF3, 0x9C, 0x12) : new Color(0xCC, 0xCC, 0xCC));
-            drawStar(g, x + i * (size + 2), y, size);
+            float cx = startX + i * (radius * 2f + gap) + radius;
+            g.setColor(i < rating ? gold : gray);
+            drawStar(g, cx, centerY, radius);
         }
     }
 
-    private void drawStar(Graphics2D g, float cx, float cy, float size) {
+    /**
+     * Draws a single five-pointed star centered at (cx, cy) using exact golden ratio proportions.
+     */
+    private void drawStar(Graphics2D g, float cx, float cy, float radius) {
+        Path2D.Float path = new Path2D.Float();
         int n = 5;
-        float outer = size / 2f;
-        float inner = outer * 0.4f;
-        int[] px = new int[n * 2], py = new int[n * 2];
+        float innerRadius = radius * 0.382f; // golden ratio star inner radius
         for (int i = 0; i < n * 2; i++) {
-            double angle = Math.PI / 2 + i * Math.PI / n;
-            float r = (i % 2 == 0) ? outer : inner;
-            px[i] = Math.round(cx + r * (float) Math.cos(angle));
-            py[i] = Math.round(cy + size / 2f - r * (float) Math.sin(angle));
+            double angle = Math.PI / 2.0 - i * Math.PI / n;
+            float r = (i % 2 == 0) ? radius : innerRadius;
+            float x = cx + r * (float) Math.cos(angle);
+            float y = cy - r * (float) Math.sin(angle);
+            if (i == 0) {
+                path.moveTo(x, y);
+            } else {
+                path.lineTo(x, y);
+            }
         }
-        g.fillPolygon(px, py, n * 2);
+        path.closePath();
+        g.fill(path);
     }
 
     /** Draws a BufferedImage at (x,y) with given width/height in points. */
@@ -604,7 +637,6 @@ public class InternshipEvaluationPdfService {
                 } else {
                     out.add(line.toString());
                     line.setLength(0);
-                    // handle word wider than maxW
                     while (fm.stringWidth(word) > maxW) {
                         int split = 1;
                         while (split < word.length() && fm.stringWidth(word.substring(0, split + 1)) <= maxW)
